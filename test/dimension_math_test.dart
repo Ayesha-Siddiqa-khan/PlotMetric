@@ -30,6 +30,7 @@ void main() {
       expect(result.compositeArea.marla, 2);
       expect(result.compositeArea.sarsaiCenti, 610);
       expect(result.compositeArea.toDisplayString(), '0 Kanal - 2 Marla - 6.1 Sarsai');
+      expect(result.compositeArea.toShortDisplayString(), '0K - 2M - 6.1S');
     });
 
     test('Standard land units direct square feet conversion', () {
