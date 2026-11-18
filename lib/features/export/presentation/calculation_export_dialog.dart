@@ -38,7 +38,7 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
     _subtitleController = TextEditingController(text: 'LAND MEASUREMENT & COLONY DEDUCTION REPORT');
     final nowStr = DateTime.now().toLocal().toString().split('.').first;
     _metadataController = TextEditingController(
-      text: 'Generated on: $nowStr | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (225 sq ft)',
+      text: 'Generated on: $nowStr | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (272.25 sq ft)',
     );
   }
 

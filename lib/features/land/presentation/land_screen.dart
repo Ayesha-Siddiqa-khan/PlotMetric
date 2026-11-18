@@ -235,7 +235,17 @@ class _LandScreenState extends ConsumerState<LandScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Scheme Title'),
+                decoration: const InputDecoration(
+                  labelText: 'Scheme Title',
+                  hintText: 'Housing Scheme Plan',
+                ),
+                onTap: () {
+                  if (titleCtrl.text == 'Housing Scheme Plan' || titleCtrl.text.isEmpty) {
+                    titleCtrl.clear();
+                  } else {
+                    titleCtrl.selection = TextSelection(baseOffset: 0, extentOffset: titleCtrl.text.length);
+                  }
+                },
               ),
               const SizedBox(height: 10),
               Row(
@@ -244,7 +254,17 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                     child: TextField(
                       controller: kanalCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Kanal (کنال)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Kanal (کنال)',
+                        hintText: '0',
+                      ),
+                      onTap: () {
+                        if (kanalCtrl.text == '95' || kanalCtrl.text == '0' || kanalCtrl.text.isEmpty) {
+                          kanalCtrl.clear();
+                        } else {
+                          kanalCtrl.selection = TextSelection(baseOffset: 0, extentOffset: kanalCtrl.text.length);
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -252,7 +272,17 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                     child: TextField(
                       controller: marlaCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Marla (مرلہ)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Marla (مرلہ)',
+                        hintText: '0',
+                      ),
+                      onTap: () {
+                        if (marlaCtrl.text == '20' || marlaCtrl.text == '0' || marlaCtrl.text.isEmpty) {
+                          marlaCtrl.clear();
+                        } else {
+                          marlaCtrl.selection = TextSelection(baseOffset: 0, extentOffset: marlaCtrl.text.length);
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -260,7 +290,17 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                     child: TextField(
                       controller: sarsaiCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'Sarsai (سرسائی)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Sarsai (سرسائی)',
+                        hintText: '0',
+                      ),
+                      onTap: () {
+                        if (sarsaiCtrl.text == '8' || sarsaiCtrl.text == '0' || sarsaiCtrl.text.isEmpty) {
+                          sarsaiCtrl.clear();
+                        } else {
+                          sarsaiCtrl.selection = TextSelection(baseOffset: 0, extentOffset: sarsaiCtrl.text.length);
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -431,6 +471,16 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                                   : null,
                             ),
                             style: const TextStyle(fontWeight: FontWeight.w600),
+                            onTap: () {
+                              if (_titleController.text == 'Untitled Calculation' || _titleController.text.isEmpty) {
+                                _titleController.clear();
+                              } else {
+                                _titleController.selection = TextSelection(
+                                  baseOffset: 0,
+                                  extentOffset: _titleController.text.length,
+                                );
+                              }
+                            },
                             onChanged: (val) => controller.setTitle(val),
                           ),
                           const SizedBox(height: 10),

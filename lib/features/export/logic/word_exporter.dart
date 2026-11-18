@@ -28,7 +28,7 @@ class WordExporter {
   }) {
     final buffer = StringBuffer();
     final effectiveSubtitle = (subtitle ?? 'LAND MEASUREMENT & COLONY DEDUCTION REPORT').trim();
-    final defaultGeneratedOn = 'Generated: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas | 1 Marla = 9 Sarsais (225 sq ft) | 1 Sarsai = 25 sq ft';
+    final defaultGeneratedOn = 'Generated: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas | 1 Marla = 9 Sarsais (272.25 sq ft) | 1 Sarsai = 30.25 sq ft';
     final effectiveMetadata = (metadataLine ?? defaultGeneratedOn).trim();
 
     buffer.writeln('''

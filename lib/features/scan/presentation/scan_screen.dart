@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/land_units.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/number_formatters.dart';
+import '../../../data/models/calculation.dart';
 import '../../../data/models/measurement_entry.dart';
+import '../../export/presentation/calculation_export_dialog.dart';
 import '../../land/logic/land_math.dart';
 import '../../land/state/land_controller.dart';
 import '../logic/land_document_parser.dart';
@@ -127,6 +129,53 @@ Commercial Zone: 25 Kanal, 0 Marla''';
     widget.onNavigateToLand();
   }
 
+  void _openExportDialog() {
+    if (_extractedItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No measurement items to export. Please extract or add items first.'),
+          backgroundColor: AppTheme.dangerRed,
+        ),
+      );
+      return;
+    }
+
+    final entries = <MeasurementEntry>[];
+    for (int i = 0; i < _extractedItems.length; i++) {
+      final item = _extractedItems[i];
+      entries.add(
+        MeasurementEntry(
+          sortOrder: i,
+          sequenceOrder: i + 1,
+          purpose: item.purpose.trim().isEmpty ? 'Nil' : item.purpose.trim(),
+          operation: item.operation,
+          isSubtract: item.isSubtract,
+          kanal: item.kanal,
+          marla: item.marla,
+          sarsaiCenti: item.sarsaiCenti,
+        ),
+      );
+    }
+
+    final now = DateTime.now();
+    final dateIso = now.toIso8601String().split('T').first;
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final title = _schemeTitleController.text.trim().isEmpty
+        ? 'Scanned Document Report'
+        : _schemeTitleController.text.trim();
+
+    final calculation = Calculation(
+      title: title,
+      calculationDate: dateIso,
+      calculationTime: timeStr,
+      createdAtUtc: now.toUtc().toIso8601String(),
+      updatedAtUtc: now.toUtc().toIso8601String(),
+      entries: entries,
+    );
+
+    CalculationExportDialog.show(context, calculation);
+  }
+
   void _showCameraDialog() {
     showDialog(
       context: context,
@@ -173,6 +222,12 @@ Commercial Zone: 25 Kanal, 0 Marla''';
       appBar: AppBar(
         title: const Text('OCR & Document Scanner'),
         actions: [
+          if (_extractedItems.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              tooltip: 'Export & Share PDF / Word / CSV',
+              onPressed: _openExportDialog,
+            ),
           TextButton.icon(
             onPressed: _loadSampleDocument,
             icon: const Icon(Icons.auto_fix_high, color: Colors.white, size: 18),
@@ -347,9 +402,20 @@ Commercial Zone: 25 Kanal, 0 Marla''';
                             controller: _schemeTitleController,
                             decoration: const InputDecoration(
                               labelText: 'Target Calculation Title',
+                              hintText: 'e.g. Ittefaq City Housing Scheme Plan',
                               prefixIcon: Icon(Icons.label_outline, size: 18),
                               isDense: true,
                             ),
+                            onTap: () {
+                              if (_schemeTitleController.text == 'Imported Plan' || _schemeTitleController.text.isEmpty) {
+                                _schemeTitleController.clear();
+                              } else {
+                                _schemeTitleController.selection = TextSelection(
+                                  baseOffset: 0,
+                                  extentOffset: _schemeTitleController.text.length,
+                                );
+                              }
+                            },
                           ),
                           const SizedBox(height: 12),
                           const Divider(height: 1, color: AppTheme.dividerColor),
@@ -424,20 +490,46 @@ Commercial Zone: 25 Kanal, 0 Marla''';
                             ),
                           ),
                           const SizedBox(height: 16),
-                          // Send to Land Calculator Action
-                          ElevatedButton.icon(
-                            onPressed: _sendToLandCalculator,
-                            icon: const Icon(Icons.send_rounded, size: 20),
-                            label: const Text(
-                              'Send to Land Calculator',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.accentTeal,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
+                          // Actions: Send to Land Calculator & Export / Print Report
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: ElevatedButton.icon(
+                                  onPressed: _sendToLandCalculator,
+                                  icon: const Icon(Icons.send_rounded, size: 18),
+                                  label: const Text(
+                                    'Send to Land Calculator',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.accentTeal,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                flex: 2,
+                                child: OutlinedButton.icon(
+                                  onPressed: _openExportDialog,
+                                  icon: const Icon(Icons.picture_as_pdf, size: 18),
+                                  label: const Text(
+                                    'Export / Print PDF',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppTheme.primaryNavy,
+                                    side: const BorderSide(color: AppTheme.primaryNavy, width: 1.2),
+                                    backgroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -602,15 +694,15 @@ Commercial Zone: 25 Kanal, 0 Marla''';
 
   Widget _buildPurposeField(ParsedMeasurementItem item) {
     return TextFormField(
-      initialValue: item.purpose,
+      initialValue: item.purpose == 'Nil' ? '' : item.purpose,
       decoration: const InputDecoration(
-        hintText: 'Purpose',
+        hintText: 'Nil',
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       ),
       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
       onChanged: (val) {
-        item.purpose = val;
+        item.purpose = val.trim().isEmpty ? 'Nil' : val;
       },
     );
   }
@@ -619,11 +711,11 @@ Commercial Zone: 25 Kanal, 0 Marla''';
     return SizedBox(
       width: 58,
       child: TextFormField(
-        initialValue: item.kanal.toString(),
+        initialValue: item.kanal == 0 ? '' : item.kanal.toString(),
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         decoration: const InputDecoration(
-          hintText: 'K',
+          hintText: '0',
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),
@@ -642,11 +734,11 @@ Commercial Zone: 25 Kanal, 0 Marla''';
     return SizedBox(
       width: 50,
       child: TextFormField(
-        initialValue: item.marla.toString(),
+        initialValue: item.marla == 0 ? '' : item.marla.toString(),
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         decoration: const InputDecoration(
-          hintText: 'M',
+          hintText: '0',
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),
@@ -665,11 +757,11 @@ Commercial Zone: 25 Kanal, 0 Marla''';
     return SizedBox(
       width: 56,
       child: TextFormField(
-        initialValue: NumberFormatters.formatSarsaiFromCenti(item.sarsaiCenti),
+        initialValue: item.sarsaiCenti == 0 ? '' : NumberFormatters.formatSarsaiFromCenti(item.sarsaiCenti),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         textAlign: TextAlign.center,
         decoration: const InputDecoration(
-          hintText: 'S',
+          hintText: '0',
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         ),

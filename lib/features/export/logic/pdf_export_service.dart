@@ -91,7 +91,7 @@ class PdfExportService {
     }
 
     // Metadata line (Optional, editable)
-    final defaultGeneratedOn = 'Generated on: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (225 sq ft)';
+    final defaultGeneratedOn = 'Generated on: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (272.25 sq ft)';
     final effectiveMetadata = (metadataLine ?? defaultGeneratedOn).trim();
     if (effectiveMetadata.isNotEmpty) {
       currentPage.drawText(

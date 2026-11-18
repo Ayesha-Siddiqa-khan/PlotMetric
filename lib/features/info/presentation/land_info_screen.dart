@@ -11,7 +11,7 @@ class LandInfoScreen extends StatefulWidget {
 class _LandInfoScreenState extends State<LandInfoScreen> {
   final TextEditingController _inputController = TextEditingController(text: '1');
   String _selectedUnit = 'Kanal';
-  bool _use225Standard = true; // true = 225 sq ft (Societies), false = 272.25 sq ft (Govt Revenue)
+  bool _use225Standard = false; // false = 272.25 sq ft (Govt Revenue / Regional Default), true = 225 sq ft (Societies)
 
   final List<String> _units = [
     'Sarsai',
@@ -189,6 +189,16 @@ class _LandInfoScreenState extends State<LandInfoScreen> {
                                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                 ),
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                onTap: () {
+                                  if (_inputController.text == '1' || _inputController.text.isEmpty) {
+                                    _inputController.clear();
+                                  } else {
+                                    _inputController.selection = TextSelection(
+                                      baseOffset: 0,
+                                      extentOffset: _inputController.text.length,
+                                    );
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(width: 10),

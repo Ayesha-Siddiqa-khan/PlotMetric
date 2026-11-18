@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/models/calculation.dart';
+import '../../../data/models/measurement_entry.dart';
+import '../../export/presentation/calculation_export_dialog.dart';
 import '../../land/state/land_controller.dart';
 import '../logic/dimension_math.dart';
 
@@ -17,19 +20,100 @@ class DimensionScreen extends ConsumerStatefulWidget {
 class _DimensionScreenState extends ConsumerState<DimensionScreen> {
   int _selectedMode = 0; // 0: Dimensions (Length x Width), 1: Direct Sq Ft
 
+  // Focus Nodes for auto-focus and auto-select
+  final FocusNode _widthFeetFocus = FocusNode();
+  final FocusNode _widthInchesFocus = FocusNode();
+  final FocusNode _lengthFeetFocus = FocusNode();
+  final FocusNode _lengthInchesFocus = FocusNode();
+  final FocusNode _plotLabelFocus = FocusNode();
+
+  final FocusNode _directSqFtFocus = FocusNode();
+  final FocusNode _directLabelFocus = FocusNode();
+
   // Mode 0 Controllers (Feet & Inches)
   final TextEditingController _widthFeetCtrl = TextEditingController(text: '10');
   final TextEditingController _widthInchesCtrl = TextEditingController(text: '5');
   final TextEditingController _lengthFeetCtrl = TextEditingController(text: '70');
   final TextEditingController _lengthInchesCtrl = TextEditingController(text: '0');
-  final TextEditingController _plotLabelCtrl = TextEditingController(text: 'Plot (10\'5" × 70\')');
+  final TextEditingController _plotLabelCtrl = TextEditingController(text: 'Plot (10\' - 5" × 70\' - 0")');
 
   // Mode 1 Controller (Direct Sq Ft)
   final TextEditingController _directSqFtCtrl = TextEditingController(text: '729.17');
   final TextEditingController _directLabelCtrl = TextEditingController(text: 'Custom Plot Area');
 
+  // Square Yards Checkbox (Default false / unchecked as requested)
+  bool _includeSqYards = false;
+  bool _userEditedPlotLabel = false;
+  bool _userEditedDirectLabel = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _attachFocusListeners();
+
+    // Autofocus Plot Width / Front (Feet) by default after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _widthFeetFocus.requestFocus();
+      if (_widthFeetCtrl.text.isNotEmpty) {
+        _widthFeetCtrl.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _widthFeetCtrl.text.length,
+        );
+      }
+    });
+  }
+
+  void _attachFocusListeners() {
+    _setupFieldAutoSelect(_widthFeetFocus, _widthFeetCtrl, '10');
+    _setupFieldAutoSelect(_widthInchesFocus, _widthInchesCtrl, '5');
+    _setupFieldAutoSelect(_lengthFeetFocus, _lengthFeetCtrl, '70');
+    _setupFieldAutoSelect(_lengthInchesFocus, _lengthInchesCtrl, '0');
+    _setupFieldAutoSelect(_directSqFtFocus, _directSqFtCtrl, '729.17');
+  }
+
+  void _setupFieldAutoSelect(FocusNode focusNode, TextEditingController controller, String defaultVal) {
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) {
+        if (controller.text == defaultVal ||
+            controller.text == '0' ||
+            controller.text == '0.0') {
+          controller.clear();
+          _onDimensionsChanged();
+        } else {
+          controller.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: controller.text.length,
+          );
+        }
+      }
+    });
+  }
+
+  void _handleFieldTap(TextEditingController controller, String defaultVal) {
+    if (controller.text == defaultVal ||
+        controller.text == '0' ||
+        controller.text == '0.0' ||
+        controller.text.isEmpty) {
+      controller.clear();
+      _onDimensionsChanged();
+    } else {
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.text.length,
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _widthFeetFocus.dispose();
+    _widthInchesFocus.dispose();
+    _lengthFeetFocus.dispose();
+    _lengthInchesFocus.dispose();
+    _plotLabelFocus.dispose();
+    _directSqFtFocus.dispose();
+    _directLabelFocus.dispose();
+
     _widthFeetCtrl.dispose();
     _widthInchesCtrl.dispose();
     _lengthFeetCtrl.dispose();
@@ -60,21 +144,67 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
   }
 
   void _onDimensionsChanged() {
+    if (!_userEditedPlotLabel) {
+      final wF = _widthFeetCtrl.text.trim();
+      final wI = _widthInchesCtrl.text.trim();
+      final lF = _lengthFeetCtrl.text.trim();
+      final lI = _lengthInchesCtrl.text.trim();
+
+      if (wF.isEmpty && wI.isEmpty && lF.isEmpty && lI.isEmpty) {
+        _plotLabelCtrl.text = '';
+      } else {
+        final dispWF = wF.isEmpty ? '0' : wF;
+        final dispWI = wI.isEmpty ? '0' : wI;
+        final dispLF = lF.isEmpty ? '0' : lF;
+        final dispLI = lI.isEmpty ? '0' : lI;
+        _plotLabelCtrl.text = 'Plot ($dispWF\' - $dispWI" × $dispLF\' - $dispLI")';
+      }
+    }
+    setState(() {});
+  }
+
+  void _resetToNew() {
     setState(() {
-      _plotLabelCtrl.text =
-          'Plot (${_widthFeetCtrl.text}\'${_widthInchesCtrl.text}" × ${_lengthFeetCtrl.text}\'${_lengthInchesCtrl.text}")';
+      _widthFeetCtrl.clear();
+      _widthInchesCtrl.clear();
+      _lengthFeetCtrl.clear();
+      _lengthInchesCtrl.clear();
+      _plotLabelCtrl.clear();
+      _directSqFtCtrl.clear();
+      _directLabelCtrl.clear();
+      _includeSqYards = false;
+      _userEditedPlotLabel = false;
+      _userEditedDirectLabel = false;
     });
+
+    if (_selectedMode == 0) {
+      _widthFeetFocus.requestFocus();
+    } else {
+      _directSqFtFocus.requestFocus();
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('All fields reset. Ready for new plot entry!'),
+        backgroundColor: AppTheme.accentTeal,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   void _addToWorksheet({required bool isDimensionsMode}) {
     final result = isDimensionsMode ? _dimensionResult : _directSqFtResult;
-    final label = isDimensionsMode
+    final baseLabel = isDimensionsMode
         ? (_plotLabelCtrl.text.trim().isEmpty ? 'Plot Dimension' : _plotLabelCtrl.text.trim())
         : (_directLabelCtrl.text.trim().isEmpty ? 'Square Feet Entry' : _directLabelCtrl.text.trim());
 
+    final finalLabel = _includeSqYards
+        ? '$baseLabel (${result.squareYardsFormatted} Sq Yds)'
+        : baseLabel;
+
     final landCtrl = ref.read(landControllerProvider);
     landCtrl.appendCalculatedPlot(
-      purpose: label,
+      purpose: finalLabel,
       kanal: result.compositeArea.kanal,
       marla: result.compositeArea.marla,
       sarsaiCenti: result.compositeArea.sarsaiCenti,
@@ -83,7 +213,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Added "$label" (${result.compositeArea.toDisplayString()}) to Land Worksheet!'),
+        content: Text('Added "$finalLabel" (${result.compositeArea.toDisplayString()}) to Land Worksheet!'),
         backgroundColor: AppTheme.accentTeal,
         action: SnackBarAction(
           label: 'View Sheet',
@@ -98,11 +228,64 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
     );
   }
 
+  void _openExportDialog({required bool isDimensionsMode}) {
+    final result = isDimensionsMode ? _dimensionResult : _directSqFtResult;
+    final baseLabel = isDimensionsMode
+        ? (_plotLabelCtrl.text.trim().isEmpty ? 'Plot Dimension' : _plotLabelCtrl.text.trim())
+        : (_directLabelCtrl.text.trim().isEmpty ? 'Square Feet Entry' : _directLabelCtrl.text.trim());
+
+    final purpose = _includeSqYards
+        ? '$baseLabel (${result.squareYardsFormatted} Sq Yds)'
+        : baseLabel;
+
+    final now = DateTime.now();
+    final dateIso = now.toIso8601String().split('T').first;
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    final calculation = Calculation(
+      title: baseLabel,
+      calculationDate: dateIso,
+      calculationTime: timeStr,
+      createdAtUtc: now.toUtc().toIso8601String(),
+      updatedAtUtc: now.toUtc().toIso8601String(),
+      entries: [
+        MeasurementEntry(
+          purpose: purpose,
+          kanal: result.compositeArea.kanal,
+          marla: result.compositeArea.marla,
+          sarsaiCenti: result.compositeArea.sarsaiCenti,
+          isSubtract: false,
+          sequenceOrder: 1,
+        ),
+      ],
+    );
+
+    CalculationExportDialog.show(context, calculation);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Plot Dimensions & Converter'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'New Plot / Reset (نیا اندراج)',
+            onPressed: _resetToNew,
+          ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Export & Print (ایکسپورٹ اور پرنٹ)',
+            onPressed: () => _openExportDialog(isDimensionsMode: _selectedMode == 0),
+          ),
+          if (widget.onNavigateToLand != null)
+            IconButton(
+              icon: const Icon(Icons.table_chart_outlined),
+              tooltip: 'View Land Worksheet',
+              onPressed: widget.onNavigateToLand,
+            ),
+        ],
       ),
       body: SafeArea(
         child: Center(
@@ -131,6 +314,19 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                     onSelectionChanged: (val) {
                       setState(() {
                         _selectedMode = val.first;
+                      });
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (_selectedMode == 0) {
+                          _widthFeetFocus.requestFocus();
+                          if (_widthFeetCtrl.text.isNotEmpty) {
+                            _widthFeetCtrl.selection = TextSelection(0, _widthFeetCtrl.text.length);
+                          }
+                        } else {
+                          _directSqFtFocus.requestFocus();
+                          if (_directSqFtCtrl.text.isNotEmpty) {
+                            _directSqFtCtrl.selection = TextSelection(0, _directSqFtCtrl.text.length);
+                          }
+                        }
                       });
                     },
                     style: ButtonStyle(
@@ -181,11 +377,11 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.straighten, color: AppTheme.primaryNavy, size: 20),
-                  SizedBox(width: 8),
-                  Text(
+                  const Icon(Icons.straighten, color: AppTheme.primaryNavy, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
                     'Building Drawing / Site Plan Inputs',
                     style: TextStyle(
                       fontSize: 15,
@@ -193,9 +389,19 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       color: AppTheme.primaryNavy,
                     ),
                   ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: _resetToNew,
+                    icon: const Icon(Icons.restart_alt, size: 16),
+                    label: const Text('New / Clear', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.accentTeal,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               const Text(
                 'Enter plot width and length from blueprint or site plan in Feet and Inches.',
                 style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
@@ -214,12 +420,17 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                     flex: 3,
                     child: TextFormField(
                       controller: _widthFeetCtrl,
+                      focusNode: _widthFeetFocus,
                       keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Feet (فٹ)',
+                        hintText: '0',
                         suffixText: 'ft',
                       ),
+                      onTap: () => _handleFieldTap(_widthFeetCtrl, '10'),
                       onChanged: (_) => _onDimensionsChanged(),
+                      onFieldSubmitted: (_) => _widthInchesFocus.requestFocus(),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -227,12 +438,17 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                     flex: 2,
                     child: TextFormField(
                       controller: _widthInchesCtrl,
+                      focusNode: _widthInchesFocus,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Inches (انچ)',
+                        hintText: '0',
                         suffixText: 'in',
                       ),
+                      onTap: () => _handleFieldTap(_widthInchesCtrl, '5'),
                       onChanged: (_) => _onDimensionsChanged(),
+                      onFieldSubmitted: (_) => _lengthFeetFocus.requestFocus(),
                     ),
                   ),
                 ],
@@ -251,12 +467,17 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                     flex: 3,
                     child: TextFormField(
                       controller: _lengthFeetCtrl,
+                      focusNode: _lengthFeetFocus,
                       keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Feet (فٹ)',
+                        hintText: '0',
                         suffixText: 'ft',
                       ),
+                      onTap: () => _handleFieldTap(_lengthFeetCtrl, '70'),
                       onChanged: (_) => _onDimensionsChanged(),
+                      onFieldSubmitted: (_) => _lengthInchesFocus.requestFocus(),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -264,12 +485,17 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                     flex: 2,
                     child: TextFormField(
                       controller: _lengthInchesCtrl,
+                      focusNode: _lengthInchesFocus,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Inches (انچ)',
+                        hintText: '0',
                         suffixText: 'in',
                       ),
+                      onTap: () => _handleFieldTap(_lengthInchesCtrl, '0'),
                       onChanged: (_) => _onDimensionsChanged(),
+                      onFieldSubmitted: (_) => _plotLabelFocus.requestFocus(),
                     ),
                   ),
                 ],
@@ -279,10 +505,16 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
               // Plot Label Field
               TextFormField(
                 controller: _plotLabelCtrl,
+                focusNode: _plotLabelFocus,
                 decoration: const InputDecoration(
                   labelText: 'Worksheet Description / Label',
+                  hintText: 'Plot (10\' - 5" × 70\' - 0")',
                   prefixIcon: Icon(Icons.label_outline, size: 18),
                 ),
+                onTap: () => _handleFieldTap(_plotLabelCtrl, 'Plot (10\' - 5" × 70\' - 0")'),
+                onChanged: (val) {
+                  _userEditedPlotLabel = val.trim().isNotEmpty;
+                },
               ),
             ],
           ),
@@ -293,10 +525,12 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
         _buildResultCard(
           result: result,
           onAdd: () => _addToWorksheet(isDimensionsMode: true),
+          onExport: () => _openExportDialog(isDimensionsMode: true),
           formulaText:
-              '(${_widthFeetCtrl.text}\' ${_widthInchesCtrl.text}" = ${result.widthInches.toStringAsFixed(1)}") × '
-              '(${_lengthFeetCtrl.text}\' ${_lengthInchesCtrl.text}" = ${result.lengthInches.toStringAsFixed(1)}") = '
+              '(${_widthFeetCtrl.text.isEmpty ? '0' : _widthFeetCtrl.text}\' - ${_widthInchesCtrl.text.isEmpty ? '0' : _widthInchesCtrl.text}" = ${result.widthInches.toStringAsFixed(1)}") × '
+              '(${_lengthFeetCtrl.text.isEmpty ? '0' : _lengthFeetCtrl.text}\' - ${_lengthInchesCtrl.text.isEmpty ? '0' : _lengthInchesCtrl.text}" = ${result.lengthInches.toStringAsFixed(1)}") = '
               '${result.totalSquareInches.toStringAsFixed(0)} sq in ÷ 144 = ${result.squareFeetFormatted} sq ft',
+          isDimensionsMode: true,
         ),
       ],
     );
@@ -330,11 +564,11 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.calculate_outlined, color: AppTheme.primaryNavy, size: 20),
-                  SizedBox(width: 8),
-                  Text(
+                  const Icon(Icons.calculate_outlined, color: AppTheme.primaryNavy, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
                     'Direct Square Feet Input (اسکوائر فٹ)',
                     style: TextStyle(
                       fontSize: 15,
@@ -342,9 +576,19 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       color: AppTheme.primaryNavy,
                     ),
                   ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: _resetToNew,
+                    icon: const Icon(Icons.restart_alt, size: 16),
+                    label: const Text('New / Clear', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.accentTeal,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               const Text(
                 'Enter total square feet to instantly convert into Kanal, Marla, and Sarsai.',
                 style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
@@ -353,10 +597,12 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
 
               TextFormField(
                 controller: _directSqFtCtrl,
+                focusNode: _directSqFtFocus,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
                   labelText: 'Square Feet (sq ft)',
+                  hintText: '0.0',
                   suffixText: 'sq ft',
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.clear, size: 18),
@@ -366,6 +612,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                     },
                   ),
                 ),
+                onTap: () => _handleFieldTap(_directSqFtCtrl, '729.17'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),
@@ -386,6 +633,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       setState(() {
                         _directSqFtCtrl.text = p.sqFt.toString();
                         _directLabelCtrl.text = p.label;
+                        _userEditedDirectLabel = true;
                       });
                     },
                   );
@@ -395,10 +643,16 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
 
               TextFormField(
                 controller: _directLabelCtrl,
+                focusNode: _directLabelFocus,
                 decoration: const InputDecoration(
                   labelText: 'Worksheet Description / Label',
+                  hintText: 'Custom Plot Area',
                   prefixIcon: Icon(Icons.label_outline, size: 18),
                 ),
+                onTap: () => _handleFieldTap(_directLabelCtrl, 'Custom Plot Area'),
+                onChanged: (val) {
+                  _userEditedDirectLabel = val.trim().isNotEmpty;
+                },
               ),
             ],
           ),
@@ -409,7 +663,9 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
         _buildResultCard(
           result: result,
           onAdd: () => _addToWorksheet(isDimensionsMode: false),
+          onExport: () => _openExportDialog(isDimensionsMode: false),
           formulaText: 'Based on official 272.25 sq ft/Marla and 30.25 sq ft/Sarsai standard conversion.',
+          isDimensionsMode: false,
         ),
       ],
     );
@@ -418,7 +674,9 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
   Widget _buildResultCard({
     required DimensionCalculationResult result,
     required VoidCallback onAdd,
+    required VoidCallback onExport,
     required String formulaText,
+    required bool isDimensionsMode,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -442,26 +700,37 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                   color: AppTheme.accentTeal,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.copy, size: 18, color: AppTheme.accentTeal),
-                tooltip: 'Copy results',
-                onPressed: () {
-                  final text =
-                      'Area: ${result.squareFeetFormatted} sq ft (${result.squareYardsFormatted} sq yards) = ${result.compositeArea.toDisplayString()}';
-                  Clipboard.setData(ClipboardData(text: text));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Measurement copied to clipboard!'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 18, color: AppTheme.accentTeal),
+                    tooltip: 'Copy results',
+                    onPressed: () {
+                      final text = _includeSqYards
+                          ? 'Area: ${result.squareFeetFormatted} sq ft (${result.squareYardsFormatted} sq yards) = ${result.compositeArea.toDisplayString()}'
+                          : 'Area: ${result.squareFeetFormatted} sq ft = ${result.compositeArea.toDisplayString()}';
+                      Clipboard.setData(ClipboardData(text: text));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Measurement copied to clipboard!'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.picture_as_pdf, size: 18, color: AppTheme.primaryNavy),
+                    tooltip: 'Export & Share PDF / Word / CSV',
+                    onPressed: onExport,
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
-          // Land Equivalent Highlight
+          // Land Equivalent Highlight (Dashed format)
           Text(
             result.compositeArea.toDisplayString(),
             style: const TextStyle(
@@ -470,9 +739,9 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
               color: AppTheme.primaryNavy,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // Square Feet & Yards Row
+          // Square Feet & Yards Row with Checkbox for Square Yards
           Row(
             children: [
               Expanded(
@@ -484,10 +753,78 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _buildMetricTile(
-                  label: 'Square Yards / Gaj (گز)',
-                  value: '${result.squareYardsFormatted} yards',
-                  isPrimary: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _includeSqYards ? AppTheme.accentTeal.withValues(alpha: 0.08) : Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: _includeSqYards ? AppTheme.accentTeal : AppTheme.dividerColor,
+                      width: _includeSqYards ? 1.5 : 1.0,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Square Yards / Gaj (گز)',
+                            style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                          ),
+                          SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: Tooltip(
+                              message: 'Include in record / worksheet entry',
+                              child: Checkbox(
+                                value: _includeSqYards,
+                                activeColor: AppTheme.accentTeal,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _includeSqYards = val ?? false;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text(
+                            '${result.squareYardsFormatted} yards',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: _includeSqYards ? AppTheme.accentTeal : AppTheme.primaryNavy,
+                            ),
+                          ),
+                          if (_includeSqYards) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentTeal.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: const Text(
+                                'In Record',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.accentTeal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -496,25 +833,51 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
 
           // Formula / explanation note
           Text(
-            formulaText,
+            _includeSqYards
+                ? '$formulaText\n✓ Square Yards (گز) included in worksheet and export report.'
+                : '$formulaText\n• Check the box above to include Square Yards (گز) in record & report.',
             style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
           ),
           const SizedBox(height: 16),
 
-          // Add to Worksheet Button
-          ElevatedButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.playlist_add, size: 20),
-            label: const Text(
-              'Add to Land Worksheet',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentTeal,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            ),
+          // Action Buttons: Add to Worksheet + Export / Print PDF
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.playlist_add, size: 18),
+                  label: const Text(
+                    'Add to Worksheet',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentTeal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onExport,
+                  icon: const Icon(Icons.picture_as_pdf, size: 18),
+                  label: const Text(
+                    'Export / Print PDF',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryNavy,
+                    side: const BorderSide(color: AppTheme.primaryNavy, width: 1.2),
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
