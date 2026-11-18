@@ -10,6 +10,7 @@ class AppTheme {
   static const Color surfaceWhite = Color(0xFFFFFFFF);
   static const Color dividerColor = Color(0xFFD6DFE6);
   static const Color textMuted = Color(0xFF5A6E85);
+  static const Color charcoalText = Color(0xFF222B35);
 
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme(

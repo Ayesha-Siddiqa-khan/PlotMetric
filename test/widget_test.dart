@@ -31,9 +31,51 @@ void main() {
 
     // Verify navigation tabs
     expect(find.text('Land'), findsWidgets);
+    expect(find.text('Dimensions'), findsOneWidget);
     expect(find.text('Calculator'), findsOneWidget);
     expect(find.text('Records'), findsOneWidget);
     expect(find.text('Scan'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+  });
+
+  testWidgets('Tapping Settings tab opens Settings & Data Management', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: PlotMetricApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Settings tab
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+
+    // Verify Settings screen elements
+    expect(find.text('Settings & Data Management'), findsOneWidget);
+    expect(find.text('Database Backup & Restore'), findsOneWidget);
+    expect(find.text('Backup to JSON'), findsOneWidget);
+    expect(find.text('Restore from JSON'), findsOneWidget);
+    expect(find.text('Export All Records'), findsOneWidget);
+    expect(find.text('Clear All Data'), findsOneWidget);
+  });
+
+  testWidgets('Tapping Dimensions tab opens Plot Dimensions & Converter', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: PlotMetricApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Dimensions tab
+    await tester.tap(find.byIcon(Icons.architecture_outlined));
+    await tester.pumpAndSettle();
+
+    // Verify Dimensions screen elements
+    expect(find.text('Plot Dimensions & Converter'), findsOneWidget);
+    expect(find.text('Length × Width (Ft/In)'), findsOneWidget);
+    expect(find.text('Direct Sq Ft to Marla'), findsOneWidget);
+    expect(find.text('Add to Land Worksheet'), findsOneWidget);
   });
 
   testWidgets('Tapping Calculator tab switches screen', (WidgetTester tester) async {

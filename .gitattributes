@@ -12,3 +12,4 @@
 *.jpg binary
 *.keystore binary
 *.db binary
+graphify-out/graph.json merge=graphify

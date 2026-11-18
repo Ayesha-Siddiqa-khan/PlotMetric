@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'data/models/calculation.dart';
 import 'features/calculator/presentation/calculator_screen.dart';
+import 'features/dimensions/presentation/dimension_screen.dart';
 import 'features/land/presentation/land_screen.dart';
 import 'features/land/state/land_controller.dart';
 import 'features/records/presentation/records_screen.dart';
 import 'features/scan/presentation/scan_screen.dart';
+import 'features/settings/presentation/settings_screen.dart';
 
 class PlotMetricApp extends StatelessWidget {
   const PlotMetricApp({super.key});
@@ -51,10 +53,23 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
     final isDesktop = MediaQuery.of(context).size.width >= 720;
 
     final screens = [
-      LandScreen(onNavigateToRecords: () => _onTabSelected(2)),
+      LandScreen(
+        onNavigateToRecords: () => _onTabSelected(3),
+        onNavigateToDimensions: () => _onTabSelected(1),
+        onNavigateToSettings: () => _onTabSelected(5),
+      ),
+      DimensionScreen(onNavigateToLand: () => _onTabSelected(0)),
       const CalculatorScreen(),
-      RecordsScreen(onOpenCalculation: _onOpenCalculation),
+      RecordsScreen(
+        onOpenCalculation: _onOpenCalculation,
+        onNavigateToSettings: () => _onTabSelected(5),
+      ),
       ScanScreen(onNavigateToLand: () => _onTabSelected(0)),
+      SettingsScreen(
+        onDataCleared: () {
+          ref.read(landControllerProvider).clearToNew();
+        },
+      ),
     ];
 
     if (isDesktop) {
@@ -104,6 +119,11 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
                   label: Text('Land'),
                 ),
                 NavigationRailDestination(
+                  icon: Icon(Icons.architecture_outlined),
+                  selectedIcon: Icon(Icons.architecture),
+                  label: Text('Dimensions'),
+                ),
+                NavigationRailDestination(
                   icon: Icon(Icons.calculate_outlined),
                   selectedIcon: Icon(Icons.calculate),
                   label: Text('Calculator'),
@@ -117,6 +137,11 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
                   icon: Icon(Icons.document_scanner_outlined),
                   selectedIcon: Icon(Icons.document_scanner),
                   label: Text('Scan'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings),
+                  label: Text('Settings'),
                 ),
               ],
             ),
@@ -141,11 +166,17 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabSelected,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.square_foot_outlined),
             activeIcon: Icon(Icons.square_foot),
             label: 'Land',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.architecture_outlined),
+            activeIcon: Icon(Icons.architecture),
+            label: 'Dimensions',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calculate_outlined),
@@ -161,6 +192,11 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
             icon: Icon(Icons.document_scanner_outlined),
             activeIcon: Icon(Icons.document_scanner),
             label: 'Scan',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
       ),

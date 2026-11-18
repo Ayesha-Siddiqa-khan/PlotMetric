@@ -3,14 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/number_formatters.dart';
+import '../../export/presentation/calculation_export_dialog.dart';
 import '../state/land_controller.dart';
 import 'widgets/land_summary.dart';
 import 'widgets/measurement_sheet.dart';
 
 class LandScreen extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToRecords;
+  final VoidCallback? onNavigateToDimensions;
+  final VoidCallback? onNavigateToSettings;
 
-  const LandScreen({super.key, this.onNavigateToRecords});
+  const LandScreen({
+    super.key,
+    this.onNavigateToRecords,
+    this.onNavigateToDimensions,
+    this.onNavigateToSettings,
+  });
 
   @override
   ConsumerState<LandScreen> createState() => _LandScreenState();
@@ -177,6 +185,12 @@ class _LandScreenState extends ConsumerState<LandScreen> {
     }
   }
 
+  void _onExportPressed() {
+    final controller = ref.read(landControllerProvider);
+    final calc = controller.toCalculation();
+    CalculationExportDialog.show(context, calc);
+  }
+
   void _onCopySummaryPressed() {
     final controller = ref.read(landControllerProvider);
     controller.setTitle(_titleController.text);
@@ -327,11 +341,28 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              tooltip: 'Export PDF / Share',
+              onPressed: _onExportPressed,
+            ),
+            if (widget.onNavigateToDimensions != null)
+              IconButton(
+                icon: const Icon(Icons.architecture),
+                tooltip: 'Plot Dimensions (Ft/In)',
+                onPressed: widget.onNavigateToDimensions,
+              ),
             if (widget.onNavigateToRecords != null)
               IconButton(
                 icon: const Icon(Icons.history),
                 tooltip: 'Saved Records',
                 onPressed: widget.onNavigateToRecords,
+              ),
+            if (widget.onNavigateToSettings != null)
+              IconButton(
+                icon: const Icon(Icons.settings),
+                tooltip: 'Settings & Data',
+                onPressed: widget.onNavigateToSettings,
               ),
           ],
           bottom: const PreferredSize(
@@ -522,6 +553,20 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: AppTheme.primaryNavy),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _onExportPressed,
+                          icon: const Icon(Icons.picture_as_pdf, size: 18),
+                          label: const Text(
+                            'Export PDF / Share',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black87,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                           ),
                         ),

@@ -146,6 +146,26 @@ class LandController extends ChangeNotifier {
     });
   }
 
+  void appendCalculatedPlot({
+    required String purpose,
+    required int kanal,
+    required int marla,
+    required int sarsaiCenti,
+    bool isSubtract = false,
+  }) {
+    final newRow = LandRowModel(
+      keyId: _generateKey(),
+      operation: isSubtract ? EntryOperation.subtract : EntryOperation.add,
+      purpose: purpose,
+      kanal: kanal,
+      marla: marla,
+      sarsaiCenti: sarsaiCenti,
+    );
+    _rows.add(newRow);
+    _isDirty = true;
+    notifyListeners();
+  }
+
   void removeRow(int index) {
     if (index <= 0 || index >= _rows.length) return;
     final removed = _rows.removeAt(index);
@@ -279,6 +299,31 @@ class LandController extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  /// Converts current worksheet state to a Calculation object for export or saving
+  Calculation toCalculation() {
+    final trimmedTitle = _title.trim().isEmpty ? 'Colony Land Calculation' : _title.trim();
+    final isoDate = DateTimeFormatters.formatStorageDate(_calculationDate);
+    final hourStr = _calculationTime.hour.toString().padLeft(2, '0');
+    final minuteStr = _calculationTime.minute.toString().padLeft(2, '0');
+    final storageTime = '$hourStr:$minuteStr';
+
+    final calculationEntries = <MeasurementEntry>[];
+    for (int i = 0; i < _rows.length; i++) {
+      calculationEntries.add(_rows[i].toMeasurementEntry(sortOrder: i));
+    }
+
+    final nowUtc = DateTime.now().toUtc().toIso8601String();
+    return Calculation(
+      id: _currentCalculationId,
+      title: trimmedTitle,
+      calculationDate: isoDate,
+      calculationTime: storageTime,
+      createdAtUtc: _createdAtUtc.isNotEmpty ? _createdAtUtc : nowUtc,
+      updatedAtUtc: nowUtc,
+      entries: calculationEntries,
+    );
   }
 
   /// Sets up a standard Housing Scheme / Colony land breakdown template

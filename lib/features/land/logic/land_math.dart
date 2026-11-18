@@ -65,10 +65,22 @@ class LandWorksheetSummary {
 
   String get netSqFtFormatted =>
       NumberFormatters.formatSquareFeetFromTenThousandths(netSqFtTenThousandths);
+
+  LandCompositeArea get totalAddCompositeArea => grossCompositeArea;
+  String get totalAddSqFtFormatted => totalAddedSqFtFormatted;
+  LandCompositeArea get totalSubtractCompositeArea => totalDeductedCompositeArea;
+  String get totalSubtractSqFtFormatted => totalDeductedSqFtFormatted;
 }
 
 class LandMath {
   const LandMath._();
+
+  /// Converts centi-Sarsai to floating point square feet (1 centi-Sarsai = 0.25 sq ft)
+  static double centiSarsaiToSquareFeet(int centiSarsai) => centiSarsai * 0.25;
+
+  /// Alias for converting centi-Sarsai to LandCompositeArea
+  static LandCompositeArea centiSarsaiToCompositeArea(int centiSarsai) =>
+      centiSarsaiToComposite(centiSarsai);
 
   /// Converts kanal, marla, and sarsaiCenti into total integer centi-Sarsai
   static int rowToCentiSarsai({

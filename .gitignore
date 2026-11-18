@@ -48,6 +48,10 @@ app.*.map.json
 graphify-out/
 *.graph.json
 
+# Local exports & backups
+plotmetric_exports/
+*.json.bak
+
 # Local agent & database artifacts
 *.db
 *.db-journal

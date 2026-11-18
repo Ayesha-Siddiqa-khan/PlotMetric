@@ -3,12 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_time_formatters.dart';
 import '../../../data/models/calculation.dart';
+import '../../export/presentation/calculation_export_dialog.dart';
 import '../../land/state/land_controller.dart';
 
 class RecordsScreen extends ConsumerStatefulWidget {
   final void Function(Calculation calc) onOpenCalculation;
+  final VoidCallback? onNavigateToSettings;
 
-  const RecordsScreen({super.key, required this.onOpenCalculation});
+  const RecordsScreen({
+    super.key,
+    required this.onOpenCalculation,
+    this.onNavigateToSettings,
+  });
 
   @override
   ConsumerState<RecordsScreen> createState() => _RecordsScreenState();
@@ -132,6 +138,12 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
             tooltip: 'Refresh',
             onPressed: () => _loadCalculations(_searchController.text),
           ),
+          if (widget.onNavigateToSettings != null)
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Settings & Data',
+              onPressed: widget.onNavigateToSettings,
+            ),
         ],
       ),
       body: SafeArea(
@@ -317,6 +329,14 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 20, color: AppTheme.primaryNavy),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Export & Share PDF',
+                    onPressed: () => CalculationExportDialog.show(context, calc),
+                  ),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 20, color: AppTheme.dangerRed),
                     padding: EdgeInsets.zero,
