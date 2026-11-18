@@ -387,15 +387,18 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                 children: [
                   const Icon(Icons.straighten, color: AppTheme.primaryNavy, size: 20),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Building Drawing / Site Plan Inputs',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryNavy,
+                  const Expanded(
+                    child: Text(
+                      'Building Drawing / Site Plan Inputs',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryNavy,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: _resetToNew,
                     icon: const Icon(Icons.restart_alt, size: 16),
@@ -574,15 +577,18 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                 children: [
                   const Icon(Icons.calculate_outlined, color: AppTheme.primaryNavy, size: 20),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Direct Square Feet Input (اسکوائر فٹ)',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryNavy,
+                  const Expanded(
+                    child: Text(
+                      'Direct Square Feet Input (اسکوائر فٹ)',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryNavy,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: _resetToNew,
                     icon: const Icon(Icons.restart_alt, size: 16),
@@ -775,9 +781,12 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Square Yards / Gaj (گز)',
-                            style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                          const Expanded(
+                            child: Text(
+                              'Square Yards / Gaj (گز)',
+                              style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           SizedBox(
                             height: 22,
@@ -854,7 +863,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                   onPressed: onAdd,
                   icon: const Icon(Icons.playlist_add, size: 18),
                   label: const Text(
-                    'Add to Worksheet',
+                    'Add to Land Worksheet',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
