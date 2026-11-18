@@ -1,0 +1,6 @@
+# Cursor Rules
+
+Please adhere to canonical project guidelines defined in [AGENTS.md](AGENTS.md) and [.agent-policy/](.agent-policy/).
+- Maintain strictly offline operation.
+- Do not run automatic package install or update commands.
+- Feature-based structure under `lib/features/`.
