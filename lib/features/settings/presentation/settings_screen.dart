@@ -28,10 +28,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isExporting = false;
 
   void _showNotification(String message, {bool isSuccess = true}) {
-    setState(() {
-      _statusMessage = message;
-      _isSuccess = isSuccess;
-    });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),

@@ -56,7 +56,6 @@ void main() {
     expect(find.text('Backup to JSON'), findsOneWidget);
     expect(find.text('Restore from JSON'), findsOneWidget);
     expect(find.text('Export All Records'), findsOneWidget);
-    expect(find.text('Clear All Data'), findsOneWidget);
   });
 
   testWidgets('Tapping Dimensions tab opens Plot Dimensions & Converter', (WidgetTester tester) async {

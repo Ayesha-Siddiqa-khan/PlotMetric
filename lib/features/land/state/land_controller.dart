@@ -212,6 +212,9 @@ class LandController extends ChangeNotifier {
     });
   }
 
+  /// Alias for clearing and starting a new worksheet
+  void clearToNew() => newWorksheet();
+
   void loadCalculation(Calculation calc) {
     _disposeAllRows();
     _currentCalculationId = calc.id;

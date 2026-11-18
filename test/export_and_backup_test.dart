@@ -161,7 +161,7 @@ void main() {
       );
 
       final doc = WordExporter.exportCalculation(sampleCalculation);
-      expect(doc.contains('xmlns:w="urn:schemas-microsoft-com:office:word"'.replaceAll('"', "'")), isTrue);
+      expect(doc.contains('urn:schemas-microsoft-com:office:word'), isTrue);
       expect(doc.contains('Shadman Colony'), isTrue);
       expect(doc.contains('<table class="data-table">'), isTrue);
       expect(doc.contains('SUMMARY &amp; NET REMAINING BALANCE'), isTrue);

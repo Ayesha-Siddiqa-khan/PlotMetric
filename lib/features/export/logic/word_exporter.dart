@@ -207,7 +207,7 @@ table.data-table td {
       final summary = calc.summary;
       buffer.writeln('''
 <div class="summary-box">
-  <div class="summary-title">SUMMARY & NET REMAINING BALANCE</div>
+  <div class="summary-title">SUMMARY &amp; NET REMAINING BALANCE</div>
   <div class="summary-row">Total Colony Area (+): <strong>${summary.totalAddCompositeArea.toDisplayString()}</strong> (${summary.totalAddSqFtFormatted} sq ft)</div>
   <div class="summary-row">Total Deductions (Roads/Parks/Mosque) (-): <strong>${summary.totalSubtractCompositeArea.toDisplayString()}</strong> (${summary.totalSubtractSqFtFormatted} sq ft)</div>
   <div class="summary-net">NET REMAINING BALANCE: <strong>${summary.netCompositeArea.toDisplayString()}</strong> (${summary.netSqFtFormatted} sq ft)</div>
