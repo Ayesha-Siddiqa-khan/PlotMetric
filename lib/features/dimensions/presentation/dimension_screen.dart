@@ -250,12 +250,12 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
       updatedAtUtc: now.toUtc().toIso8601String(),
       entries: [
         MeasurementEntry(
+          sortOrder: 0,
           purpose: purpose,
+          operation: EntryOperation.add,
           kanal: result.compositeArea.kanal,
           marla: result.compositeArea.marla,
           sarsaiCenti: result.compositeArea.sarsaiCenti,
-          isSubtract: false,
-          sequenceOrder: 1,
         ),
       ],
     );
@@ -319,12 +319,18 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                         if (_selectedMode == 0) {
                           _widthFeetFocus.requestFocus();
                           if (_widthFeetCtrl.text.isNotEmpty) {
-                            _widthFeetCtrl.selection = TextSelection(0, _widthFeetCtrl.text.length);
+                            _widthFeetCtrl.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _widthFeetCtrl.text.length,
+                            );
                           }
                         } else {
                           _directSqFtFocus.requestFocus();
                           if (_directSqFtCtrl.text.isNotEmpty) {
-                            _directSqFtCtrl.selection = TextSelection(0, _directSqFtCtrl.text.length);
+                            _directSqFtCtrl.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _directSqFtCtrl.text.length,
+                            );
                           }
                         }
                       });

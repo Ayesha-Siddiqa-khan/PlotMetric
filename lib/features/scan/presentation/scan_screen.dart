@@ -146,10 +146,8 @@ Commercial Zone: 25 Kanal, 0 Marla''';
       entries.add(
         MeasurementEntry(
           sortOrder: i,
-          sequenceOrder: i + 1,
           purpose: item.purpose.trim().isEmpty ? 'Nil' : item.purpose.trim(),
           operation: item.operation,
-          isSubtract: item.isSubtract,
           kanal: item.kanal,
           marla: item.marla,
           sarsaiCenti: item.sarsaiCenti,
