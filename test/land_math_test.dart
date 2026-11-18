@@ -63,7 +63,7 @@ void main() {
       expect(composite.kanal, 479);
       expect(composite.marla, 14);
       expect(composite.sarsaiCenti, 700);
-      expect(composite.toDisplayString(), '479 Kanal 14 Marla 7 Sarsai');
+      expect(composite.toDisplayString(), '479 Kanal - 14 Marla - 7 Sarsai');
     });
 
     test('0.01 Sarsai renders 0.3025 sq ft without rounding precision away', () {
@@ -90,7 +90,7 @@ void main() {
       expect(summary.netCompositeArea.kanal, 1);
       expect(summary.netCompositeArea.marla, 0);
       expect(summary.netCompositeArea.sarsaiCenti, 0);
-      expect(summary.netCompositeArea.toDisplayString(), '1 Kanal 0 Marla 0 Sarsai');
+      expect(summary.netCompositeArea.toDisplayString(), '1 Kanal - 0 Marla - 0 Sarsai');
       expect(summary.netSqFtFormatted, '5,445.00');
     });
 
@@ -108,7 +108,7 @@ void main() {
       expect(summary.netCompositeArea.kanal, 1);
       expect(summary.netCompositeArea.marla, 5);
       expect(summary.netCompositeArea.sarsaiCenti, 300);
-      expect(summary.netCompositeArea.toDisplayString(), '- (1 Kanal 5 Marla 3 Sarsai)');
+      expect(summary.netCompositeArea.toDisplayString(), '- (1 Kanal - 5 Marla - 3 Sarsai)');
       expect(summary.netSqFtFormatted, '-6,897.00');
     });
 

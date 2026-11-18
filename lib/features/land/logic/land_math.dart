@@ -16,10 +16,17 @@ class LandCompositeArea {
 
   String get sarsaiFormatted => NumberFormatters.formatSarsaiFromCenti(sarsaiCenti);
 
-  /// Formatted as "479 Kanal 14 Marla 7 Sarsai" or "- (1 Kanal 2 Marla 3 Sarsai)"
+  /// Formatted with dashes: "95 Kanal - 10 Marla - 0 Sarsai" or "- (1 Kanal - 2 Marla - 3 Sarsai)"
   String toDisplayString() {
     final sarsaiStr = sarsaiFormatted;
-    final body = '$kanal Kanal $marla Marla $sarsaiStr Sarsai';
+    final body = '$kanal Kanal - $marla Marla - $sarsaiStr Sarsai';
+    return isNegative ? '- ($body)' : body;
+  }
+
+  /// Compact format with dashes: "95K - 10M - 0S" or "- (95K - 10M - 0S)"
+  String toShortDisplayString() {
+    final sarsaiStr = sarsaiFormatted;
+    final body = '${kanal}K - ${marla}M - ${sarsaiStr}S';
     return isNegative ? '- ($body)' : body;
   }
 }

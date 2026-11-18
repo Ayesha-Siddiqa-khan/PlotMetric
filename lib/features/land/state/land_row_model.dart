@@ -23,6 +23,7 @@ class LandRowModel {
   final TextEditingController marlaController;
   final TextEditingController sarsaiController;
 
+  final FocusNode purposeFocus;
   final FocusNode kanalFocus;
   final FocusNode marlaFocus;
   final FocusNode sarsaiFocus;
@@ -35,15 +36,17 @@ class LandRowModel {
     this.kanal = 0,
     this.marla = 0,
     this.sarsaiCenti = 0,
-  })  : purposeController = TextEditingController(text: purpose),
-        kanalController = TextEditingController(text: kanal == 0 ? '0' : kanal.toString()),
-        marlaController = TextEditingController(text: marla == 0 ? '0' : marla.toString()),
+  })  : purposeController = TextEditingController(text: purpose == 'Nil' ? '' : purpose),
+        kanalController = TextEditingController(text: kanal == 0 ? '' : kanal.toString()),
+        marlaController = TextEditingController(text: marla == 0 ? '' : marla.toString()),
         sarsaiController = TextEditingController(
-          text: sarsaiCenti == 0 ? '0' : NumberFormatters.formatSarsaiFromCenti(sarsaiCenti),
+          text: sarsaiCenti == 0 ? '' : NumberFormatters.formatSarsaiFromCenti(sarsaiCenti),
         ),
+        purposeFocus = FocusNode(),
         kanalFocus = FocusNode(),
         marlaFocus = FocusNode(),
         sarsaiFocus = FocusNode() {
+    _attachSelectionOnFocus(purposeFocus, purposeController);
     _attachSelectionOnFocus(kanalFocus, kanalController);
     _attachSelectionOnFocus(marlaFocus, marlaController);
     _attachSelectionOnFocus(sarsaiFocus, sarsaiController);
@@ -52,7 +55,9 @@ class LandRowModel {
   static void _attachSelectionOnFocus(FocusNode focus, TextEditingController controller) {
     focus.addListener(() {
       if (focus.hasFocus) {
-        if (controller.text == '0' || controller.text == '0.0' || controller.text == '0.00') {
+        if (controller.text == '0' || controller.text == '0.0' || controller.text == '0.00' || controller.text == 'Nil') {
+          controller.clear();
+        } else if (controller.text.isNotEmpty) {
           controller.selection = TextSelection(
             baseOffset: 0,
             extentOffset: controller.text.length,
@@ -132,6 +137,7 @@ class LandRowModel {
     kanalController.dispose();
     marlaController.dispose();
     sarsaiController.dispose();
+    purposeFocus.dispose();
     kanalFocus.dispose();
     marlaFocus.dispose();
     sarsaiFocus.dispose();

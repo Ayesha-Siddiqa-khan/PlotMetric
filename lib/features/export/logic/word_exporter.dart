@@ -6,16 +6,30 @@ import '../../land/logic/land_math.dart';
 /// Compatible with Microsoft Word, LibreOffice, Google Docs, and WPS Office.
 class WordExporter {
   /// Exports a single calculation to a formatted Word HTML document
-  static String exportCalculation(Calculation calculation) {
+  static String exportCalculation(
+    Calculation calculation, {
+    String? subtitle,
+    String? metadataLine,
+  }) {
     return exportCalculations(
       [calculation],
       title: calculation.title.isEmpty ? 'Colony Land Measurement Report' : calculation.title,
+      subtitle: subtitle,
+      metadataLine: metadataLine,
     );
   }
 
   /// Exports multiple calculations to a formatted Word HTML document
-  static String exportCalculations(List<Calculation> calculations, {String title = 'PlotMetric Complete Records Report'}) {
+  static String exportCalculations(
+    List<Calculation> calculations, {
+    String title = 'PlotMetric Complete Records Report',
+    String? subtitle,
+    String? metadataLine,
+  }) {
     final buffer = StringBuffer();
+    final effectiveSubtitle = (subtitle ?? 'LAND MEASUREMENT & COLONY DEDUCTION REPORT').trim();
+    final defaultGeneratedOn = 'Generated: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas | 1 Marla = 9 Sarsais (225 sq ft) | 1 Sarsai = 25 sq ft';
+    final effectiveMetadata = (metadataLine ?? defaultGeneratedOn).trim();
 
     buffer.writeln('''
 <html xmlns:o='urn:schemas-microsoft-com:office:office'
@@ -128,11 +142,8 @@ table.data-table td {
 </head>
 <body>
   <div class="doc-title">${_escapeHtml(title)}</div>
-  <div class="doc-sub">LAND MEASUREMENT & COLONY DEDUCTION REPORT</div>
-  <div class="meta-info">
-    Generated: ${DateTime.now().toLocal().toString().split('.').first} &nbsp;|&nbsp;
-    1 Kanal = 20 Marlas &nbsp;|&nbsp; 1 Marla = 9 Sarsais (225 sq ft) &nbsp;|&nbsp; 1 Sarsai = 25 sq ft
-  </div>
+  ${effectiveSubtitle.isNotEmpty ? '<div class="doc-sub">${_escapeHtml(effectiveSubtitle)}</div>' : ''}
+  ${effectiveMetadata.isNotEmpty ? '<div class="meta-info">${_escapeHtml(effectiveMetadata)}</div>' : ''}
   <hr class="divider"/>
 ''');
 
@@ -183,7 +194,7 @@ table.data-table td {
         final sqFt = LandMath.centiSarsaiToSquareFeet(rowCenti).toStringAsFixed(2);
         final balArea = LandMath.centiSarsaiToCompositeArea(runningCenti.abs());
         final balSign = runningCenti < 0 ? '-' : '';
-        final balStr = '$balSign${balArea.kanal}K ${balArea.marla}M ${balArea.sarsaiFormatted}S';
+        final balStr = '$balSign${balArea.kanal}K - ${balArea.marla}M - ${balArea.sarsaiFormatted}S';
 
         buffer.writeln('''
     <tr>

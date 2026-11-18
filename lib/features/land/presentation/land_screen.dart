@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/number_formatters.dart';
 import '../../export/presentation/calculation_export_dialog.dart';
+import '../../info/presentation/land_info_screen.dart';
 import '../state/land_controller.dart';
 import 'widgets/land_summary.dart';
 import 'widgets/measurement_sheet.dart';
@@ -345,6 +346,16 @@ class _LandScreenState extends ConsumerState<LandScreen> {
               icon: const Icon(Icons.picture_as_pdf),
               tooltip: 'Export PDF / Share',
               onPressed: _onExportPressed,
+            ),
+            IconButton(
+              icon: const Icon(Icons.menu_book),
+              tooltip: 'Land Units & Revenue Guide',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LandInfoScreen()),
+                );
+              },
             ),
             if (widget.onNavigateToDimensions != null)
               IconButton(

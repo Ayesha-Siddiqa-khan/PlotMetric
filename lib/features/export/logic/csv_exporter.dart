@@ -54,7 +54,7 @@ class CsvExporter {
 
         final balArea = LandMath.centiSarsaiToCompositeArea(runningCenti.abs());
         final balSign = runningCenti < 0 ? '-' : '';
-        final balStr = '$balSign${balArea.kanal}K ${balArea.marla}M ${balArea.sarsaiFormatted}S';
+        final balStr = '$balSign${balArea.kanal}K - ${balArea.marla}M - ${balArea.sarsaiFormatted}S';
         final balSqFt = (runningCenti < 0 ? '-' : '') +
             LandMath.centiSarsaiToSquareFeet(runningCenti.abs()).toStringAsFixed(2);
 

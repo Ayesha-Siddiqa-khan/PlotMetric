@@ -29,7 +29,7 @@ void main() {
       expect(result.compositeArea.kanal, 0);
       expect(result.compositeArea.marla, 2);
       expect(result.compositeArea.sarsaiCenti, 610);
-      expect(result.compositeArea.toDisplayString(), '0 Kanal 2 Marla 6.1 Sarsai');
+      expect(result.compositeArea.toDisplayString(), '0 Kanal - 2 Marla - 6.1 Sarsai');
     });
 
     test('Standard land units direct square feet conversion', () {
@@ -38,21 +38,21 @@ void main() {
       expect(kanalResult.compositeArea.kanal, 1);
       expect(kanalResult.compositeArea.marla, 0);
       expect(kanalResult.compositeArea.sarsaiCenti, 0);
-      expect(kanalResult.compositeArea.toDisplayString(), '1 Kanal 0 Marla 0 Sarsai');
+      expect(kanalResult.compositeArea.toDisplayString(), '1 Kanal - 0 Marla - 0 Sarsai');
 
       // 1 Marla = 272.25 sq ft
       final marlaResult = DimensionMath.fromSquareFeet(272.25);
       expect(marlaResult.compositeArea.kanal, 0);
       expect(marlaResult.compositeArea.marla, 1);
       expect(marlaResult.compositeArea.sarsaiCenti, 0);
-      expect(marlaResult.compositeArea.toDisplayString(), '0 Kanal 1 Marla 0 Sarsai');
+      expect(marlaResult.compositeArea.toDisplayString(), '0 Kanal - 1 Marla - 0 Sarsai');
 
       // 1 Sarsai = 30.25 sq ft
       final sarsaiResult = DimensionMath.fromSquareFeet(30.25);
       expect(sarsaiResult.compositeArea.kanal, 0);
       expect(sarsaiResult.compositeArea.marla, 0);
       expect(sarsaiResult.compositeArea.sarsaiCenti, 100);
-      expect(sarsaiResult.compositeArea.toDisplayString(), '0 Kanal 0 Marla 1 Sarsai');
+      expect(sarsaiResult.compositeArea.toDisplayString(), '0 Kanal - 0 Marla - 1 Sarsai');
     });
 
     test('Custom square feet conversion: 1000 sq ft', () {

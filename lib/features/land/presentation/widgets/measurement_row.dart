@@ -69,8 +69,9 @@ class MeasurementRowWidget extends StatelessWidget {
   }
 
   Widget _buildPurposeField(BuildContext context) {
+    final displayText = (row.purpose == 'Nil' || row.purpose.isEmpty) ? '' : row.purpose;
     return Autocomplete<String>(
-      initialValue: TextEditingValue(text: row.purpose),
+      initialValue: TextEditingValue(text: displayText),
       optionsBuilder: (TextEditingValue textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
         if (query.isEmpty) {
@@ -82,15 +83,22 @@ class MeasurementRowWidget extends StatelessWidget {
         onPurposeChanged(selection);
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        if (controller.text != row.purpose) {
-          controller.text = row.purpose;
+        if (controller.text != displayText && (controller.text.isNotEmpty || row.purpose != 'Nil')) {
+          controller.text = displayText;
         }
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
           maxLength: 60,
+          onTap: () {
+            if (controller.text == 'Nil' || controller.text == '') {
+              controller.clear();
+            } else {
+              controller.selection = TextSelection(baseOffset: 0, extentOffset: controller.text.length);
+            }
+          },
           decoration: InputDecoration(
-            hintText: 'Purpose (e.g. Roads)',
+            hintText: 'Nil',
             counterText: '',
             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             suffixIcon: percentageOfGross != null && percentageOfGross! > 0 && row.isSubtract
@@ -116,7 +124,8 @@ class MeasurementRowWidget extends StatelessWidget {
           ),
           style: const TextStyle(fontSize: 14),
           onChanged: (val) {
-            onPurposeChanged(val);
+            final effective = val.trim().isEmpty ? 'Nil' : val;
+            onPurposeChanged(effective);
           },
         );
       },
@@ -164,6 +173,16 @@ class MeasurementRowWidget extends StatelessWidget {
           errorStyle: const TextStyle(fontSize: 9, height: 1),
           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         ),
+        onTap: () {
+          if (row.kanalController.text == '0' || row.kanalController.text.isEmpty) {
+            row.kanalController.clear();
+          } else {
+            row.kanalController.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: row.kanalController.text.length,
+            );
+          }
+        },
         onChanged: (_) => onValuesChanged(),
         onFieldSubmitted: (_) => row.marlaFocus.requestFocus(),
       ),
@@ -186,6 +205,16 @@ class MeasurementRowWidget extends StatelessWidget {
           errorStyle: const TextStyle(fontSize: 9, height: 1),
           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         ),
+        onTap: () {
+          if (row.marlaController.text == '0' || row.marlaController.text.isEmpty) {
+            row.marlaController.clear();
+          } else {
+            row.marlaController.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: row.marlaController.text.length,
+            );
+          }
+        },
         onChanged: (_) => onValuesChanged(),
         onFieldSubmitted: (_) => row.sarsaiFocus.requestFocus(),
       ),
@@ -208,6 +237,16 @@ class MeasurementRowWidget extends StatelessWidget {
           errorStyle: const TextStyle(fontSize: 9, height: 1),
           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         ),
+        onTap: () {
+          if (row.sarsaiController.text == '0' || row.sarsaiController.text.isEmpty) {
+            row.sarsaiController.clear();
+          } else {
+            row.sarsaiController.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: row.sarsaiController.text.length,
+            );
+          }
+        },
         onChanged: (_) => onValuesChanged(),
         onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
       ),

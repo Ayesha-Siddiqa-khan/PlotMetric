@@ -7,6 +7,7 @@ import '../../export/logic/csv_exporter.dart';
 import '../../export/logic/file_save_helper.dart';
 import '../../export/logic/pdf_export_service.dart';
 import '../../export/logic/word_exporter.dart';
+import '../../info/presentation/land_info_screen.dart';
 import '../../land/state/land_controller.dart';
 import '../logic/backup_service.dart';
 
@@ -430,6 +431,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         title: 'Land Units & Standards',
                         icon: Icons.straighten,
                         children: [
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LandInfoScreen()),
+                              );
+                            },
+                            icon: const Icon(Icons.menu_book, size: 18),
+                            label: const Text('Open Complete Land & Revenue Guide'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryNavy,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           _buildUnitRow('1 Karam', '5.5 Feet (66 Inches)'),
                           _buildUnitRow('1 Sarsai', '1 Karam × 1 Karam = 30.25 sq karam = 25 Sq Ft'),
                           _buildUnitRow('1 Marla', '9 Sarsais = 225 Sq Ft'),

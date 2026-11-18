@@ -27,11 +27,36 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
   bool _isProcessing = false;
   String? _statusMessage;
   String? _lastSavedPdfPath;
+  bool _showCustomHeaders = false;
+
+  late final TextEditingController _subtitleController;
+  late final TextEditingController _metadataController;
+
+  @override
+  void initState() {
+    super.initState();
+    _subtitleController = TextEditingController(text: 'LAND MEASUREMENT & COLONY DEDUCTION REPORT');
+    final nowStr = DateTime.now().toLocal().toString().split('.').first;
+    _metadataController = TextEditingController(
+      text: 'Generated on: $nowStr | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (225 sq ft)',
+    );
+  }
+
+  @override
+  void dispose() {
+    _subtitleController.dispose();
+    _metadataController.dispose();
+    super.dispose();
+  }
 
   Future<void> _exportPdf() async {
     setState(() => _isProcessing = true);
     try {
-      final bytes = PdfExportService.generateCalculationPdf(widget.calculation);
+      final bytes = PdfExportService.generateCalculationPdf(
+        widget.calculation,
+        subtitle: _subtitleController.text,
+        metadataLine: _metadataController.text,
+      );
       final rawTitle = widget.calculation.title.trim().isEmpty ? 'Colony_Report' : widget.calculation.title.trim();
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
       final fileName = '${rawTitle}_$timestamp.pdf';
@@ -55,7 +80,11 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
   Future<void> _exportWord() async {
     setState(() => _isProcessing = true);
     try {
-      final content = WordExporter.exportCalculation(widget.calculation);
+      final content = WordExporter.exportCalculation(
+        widget.calculation,
+        subtitle: _subtitleController.text,
+        metadataLine: _metadataController.text,
+      );
       final rawTitle = widget.calculation.title.trim().isEmpty ? 'Colony_Report' : widget.calculation.title.trim();
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
       final fileName = '${rawTitle}_$timestamp.doc';
@@ -183,7 +212,66 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+
+            // Optional Customizable Headers Accordion/Toggle
+            InkWell(
+              onTap: () => setState(() => _showCustomHeaders = !_showCustomHeaders),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      _showCustomHeaders ? Icons.tune : Icons.tune_outlined,
+                      size: 16,
+                      color: AppTheme.accentTeal,
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Customize Header & Subtitle (Optional)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.accentTeal,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _showCustomHeaders ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                      color: AppTheme.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_showCustomHeaders) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _subtitleController,
+                decoration: const InputDecoration(
+                  labelText: 'Document Subtitle',
+                  hintText: 'e.g. LAND MEASUREMENT & COLONY DEDUCTION REPORT',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _metadataController,
+                decoration: const InputDecoration(
+                  labelText: 'Date & Units Note (Header Subtitle 2)',
+                  hintText: 'e.g. Generated on: ... | 1 Kanal = 20 Marlas...',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 6),
+            ],
+            const SizedBox(height: 10),
 
             if (_statusMessage != null) ...[
               Container(

@@ -98,6 +98,27 @@ void main() {
       expect(pdfString.startsWith('%PDF-1.4'), isTrue);
       expect(pdfString.contains('%%EOF'), isTrue);
     });
+
+    test('generateCalculationPdf accepts custom subtitle and metadata line', () {
+      const sample = Calculation(
+        title: 'Model Housing',
+        calculationDate: '2026-11-18',
+        calculationTime: '12:00',
+        createdAtUtc: '',
+        updatedAtUtc: '',
+        entries: [],
+      );
+
+      final pdfBytes = PdfExportService.generateCalculationPdf(
+        sample,
+        subtitle: 'CUSTOM SUBTITLE TEST',
+        metadataLine: 'SURVEYOR: ENG AHMED',
+      );
+
+      final pdfString = utf8.decode(pdfBytes, allowMalformed: true);
+      expect(pdfString.contains('CUSTOM SUBTITLE TEST'), isTrue);
+      expect(pdfString.contains('SURVEYOR: ENG AHMED'), isTrue);
+    });
   });
 
   group('CsvExporter Tests', () {

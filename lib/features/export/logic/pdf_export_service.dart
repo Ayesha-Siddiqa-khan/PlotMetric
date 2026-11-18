@@ -22,23 +22,38 @@ class PdfExportService {
   static const double contentWidth = a4Width - (marginHorizontal * 2); // 523.28 pt
 
   /// Generates a print-ready black & white A4 PDF document for a single Calculation
-  static Uint8List generateCalculationPdf(Calculation calculation) {
+  static Uint8List generateCalculationPdf(
+    Calculation calculation, {
+    String? subtitle,
+    String? metadataLine,
+  }) {
     return _buildPdf(
       title: calculation.title.trim().isEmpty ? 'Colony Land Measurement Report' : calculation.title.trim(),
+      subtitle: subtitle,
+      metadataLine: metadataLine,
       calculations: [calculation],
     );
   }
 
   /// Generates a comprehensive print-ready black & white A4 PDF for all saved Calculations
-  static Uint8List generateAllCalculationsPdf(List<Calculation> calculations, {String title = 'PlotMetric Complete Records Report'}) {
+  static Uint8List generateAllCalculationsPdf(
+    List<Calculation> calculations, {
+    String title = 'PlotMetric Complete Records Report',
+    String? subtitle,
+    String? metadataLine,
+  }) {
     return _buildPdf(
       title: title,
+      subtitle: subtitle,
+      metadataLine: metadataLine,
       calculations: calculations,
     );
   }
 
   static Uint8List _buildPdf({
     required String title,
+    String? subtitle,
+    String? metadataLine,
     required List<Calculation> calculations,
   }) {
     final builder = _PdfLowLevelBuilder();
@@ -61,26 +76,34 @@ class PdfExportService {
     );
     currentY -= 26;
 
-    currentPage.drawText(
-      'LAND MEASUREMENT & COLONY DEDUCTION REPORT',
-      x: a4Width / 2,
-      y: currentY - 12,
-      fontSize: 10,
-      isBold: true,
-      align: _PdfTextAlign.center,
-    );
-    currentY -= 16;
+    // Subtitle (Optional, editable)
+    final effectiveSubtitle = (subtitle ?? 'LAND MEASUREMENT & COLONY DEDUCTION REPORT').trim();
+    if (effectiveSubtitle.isNotEmpty) {
+      currentPage.drawText(
+        _sanitizeText(effectiveSubtitle),
+        x: a4Width / 2,
+        y: currentY - 12,
+        fontSize: 10,
+        isBold: true,
+        align: _PdfTextAlign.center,
+      );
+      currentY -= 16;
+    }
 
-    final generatedOn = 'Generated on: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (225 sq ft)';
-    currentPage.drawText(
-      generatedOn,
-      x: a4Width / 2,
-      y: currentY - 10,
-      fontSize: 10,
-      isBold: false,
-      align: _PdfTextAlign.center,
-    );
-    currentY -= 14;
+    // Metadata line (Optional, editable)
+    final defaultGeneratedOn = 'Generated on: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (225 sq ft)';
+    final effectiveMetadata = (metadataLine ?? defaultGeneratedOn).trim();
+    if (effectiveMetadata.isNotEmpty) {
+      currentPage.drawText(
+        _sanitizeText(effectiveMetadata),
+        x: a4Width / 2,
+        y: currentY - 10,
+        fontSize: 10,
+        isBold: false,
+        align: _PdfTextAlign.center,
+      );
+      currentY -= 14;
+    }
 
     // Solid horizontal divider
     currentPage.drawLine(marginHorizontal, currentY, a4Width - marginHorizontal, currentY, lineWidth: 1.2);
@@ -141,7 +164,7 @@ class PdfExportService {
         final sqFt = LandMath.centiSarsaiToSquareFeet(rowCenti).toStringAsFixed(1);
         final balArea = LandMath.centiSarsaiToCompositeArea(runningCenti.abs());
         final balSign = runningCenti < 0 ? '-' : '';
-        final balStr = '$balSign${balArea.kanal}K ${balArea.marla}M ${balArea.sarsaiFormatted}S';
+        final balStr = '$balSign${balArea.kanal}K - ${balArea.marla}M - ${balArea.sarsaiFormatted}S';
 
         tableRows.add(_TableRowData(
           srNo: '${i + 1}',
