@@ -1,0 +1,19 @@
+#!/bin/sh
+# PlotMetric Git pre-commit hook
+echo "========================================="
+echo " [PlotMetric] Running pre-commit checks  "
+echo "========================================="
+
+# 1. Run Flutter static analysis
+if command -v flutter >/dev/null 2>&1; then
+  echo "--> Running: flutter analyze --no-pub"
+  flutter analyze --no-pub
+  STATUS=$?
+  if [ $STATUS -ne 0 ]; then
+    echo "❌ Pre-commit validation failed: flutter analyze returned code $STATUS"
+    exit 1
+  fi
+fi
+
+echo "✅ Pre-commit checks passed successfully."
+exit 0

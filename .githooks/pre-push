@@ -1,0 +1,18 @@
+#!/bin/sh
+# PlotMetric Git pre-push hook
+echo "========================================="
+echo " [PlotMetric] Running pre-push checks    "
+echo "========================================="
+
+if command -v flutter >/dev/null 2>&1; then
+  echo "--> Running: flutter test --no-pub"
+  flutter test --no-pub
+  STATUS=$?
+  if [ $STATUS -ne 0 ]; then
+    echo "❌ Pre-push validation failed: One or more flutter tests failed."
+    exit 1
+  fi
+fi
+
+echo "✅ All tests passed. Proceeding with git push."
+exit 0

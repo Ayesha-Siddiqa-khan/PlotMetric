@@ -1,0 +1,13 @@
+#!/bin/sh
+# PlotMetric Git post-commit hook
+# Automatically updates graphify AST on every commit
+echo "[PlotMetric] Updating graphify knowledge graph..."
+
+if [ -f "$HOME/.local/bin/graphify.exe" ]; then
+  "$HOME/.local/bin/graphify.exe" . --code-only >/dev/null 2>&1 || true
+elif command -v graphify >/dev/null 2>&1; then
+  graphify . --code-only >/dev/null 2>&1 || true
+fi
+
+echo "✅ Graphify knowledge graph synchronized."
+exit 0
