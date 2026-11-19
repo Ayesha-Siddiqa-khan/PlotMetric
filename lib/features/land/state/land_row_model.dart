@@ -36,7 +36,7 @@ class LandRowModel {
     this.kanal = 0,
     this.marla = 0,
     this.sarsaiCenti = 0,
-  })  : purposeController = TextEditingController(text: purpose == 'Nil' ? '' : purpose),
+  })  : purposeController = TextEditingController(text: purpose),
         kanalController = TextEditingController(text: kanal == 0 ? '' : kanal.toString()),
         marlaController = TextEditingController(text: marla == 0 ? '' : marla.toString()),
         sarsaiController = TextEditingController(
@@ -46,7 +46,11 @@ class LandRowModel {
         kanalFocus = FocusNode(),
         marlaFocus = FocusNode(),
         sarsaiFocus = FocusNode() {
-    _attachSelectionOnFocus(purposeFocus, purposeController);
+    purposeFocus.addListener(() {
+      if (!purposeFocus.hasFocus && purposeController.text.trim().isEmpty) {
+        purposeController.text = 'Nil';
+      }
+    });
     _attachSelectionOnFocus(kanalFocus, kanalController);
     _attachSelectionOnFocus(marlaFocus, marlaController);
     _attachSelectionOnFocus(sarsaiFocus, sarsaiController);

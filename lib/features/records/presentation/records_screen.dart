@@ -136,14 +136,13 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(landControllerProvider, (_, __) {
+    ref.listen(landControllerProvider, (_, _) {
       if (mounted) {
         _loadCalculations(_searchController.text.trim());
       }
     });
 
     final query = _searchController.text.trim();
-    final isDesktop = MediaQuery.of(context).size.width >= 720;
 
     return Scaffold(
       appBar: AppBar(

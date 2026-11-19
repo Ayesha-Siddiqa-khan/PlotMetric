@@ -13,14 +13,12 @@ class LandScreen extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToRecords;
   final VoidCallback? onNavigateToDimensions;
   final VoidCallback? onNavigateToSettings;
-  final bool isActive;
 
   const LandScreen({
     super.key,
     this.onNavigateToRecords,
     this.onNavigateToDimensions,
     this.onNavigateToSettings,
-    this.isActive = true,
   });
 
   @override
@@ -35,40 +33,12 @@ class _LandScreenState extends ConsumerState<LandScreen> {
     super.initState();
     final controller = ref.read(landControllerProvider);
     _titleController = TextEditingController(text: controller.title);
-
-    // Initial autofocus on first row's Purpose / Amenity after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.rows.isNotEmpty) {
-        controller.rows.first.purposeFocus.requestFocus();
-      }
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant LandScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isActive && !oldWidget.isActive) {
-      final controller = ref.read(landControllerProvider);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (controller.rows.isNotEmpty) {
-          controller.rows.first.purposeFocus.requestFocus();
-        }
-      });
-    }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     super.dispose();
-  }
-
-  Future<bool> _handlePopScope() async {
-    final controller = ref.read(landControllerProvider);
-    if (!controller.isDirty) return true;
-
-    final shouldLeave = await _showUnsavedChangesDialog();
-    return shouldLeave;
   }
 
   Future<bool> _showUnsavedChangesDialog() async {
@@ -379,16 +349,7 @@ class _LandScreenState extends ConsumerState<LandScreen> {
           _titleController.text = controller.title;
         }
 
-        return PopScope(
-          canPop: !controller.isDirty,
-          onPopInvokedWithResult: (didPop, result) async {
-            if (didPop) return;
-            final shouldPop = await _handlePopScope();
-            if (shouldPop && context.mounted) {
-              Navigator.of(context).pop();
-            }
-          },
-          child: Scaffold(
+        return Scaffold(
         appBar: AppBar(
           title: const Text('PlotMetric'),
           actions: [
@@ -671,7 +632,6 @@ class _LandScreenState extends ConsumerState<LandScreen> {
             ),
           ),
         ),
-      ),
     );
   },
 );

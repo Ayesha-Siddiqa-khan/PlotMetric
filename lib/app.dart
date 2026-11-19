@@ -33,9 +33,13 @@ class RootNavigationShell extends ConsumerStatefulWidget {
 
 class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
   int _currentIndex = 0;
+  final _tabHistory = <int>[];
 
   void _onTabSelected(int index) {
+    if (index == _currentIndex) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
+      _tabHistory.add(_currentIndex);
       _currentIndex = index;
     });
   }
@@ -43,13 +47,21 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
   void _onOpenCalculation(Calculation calc) {
     final landCtrl = ref.read(landControllerProvider);
     landCtrl.loadCalculation(calc);
-    setState(() {
-      _currentIndex = 0; // Switch to Land Tab
-    });
+    _onTabSelected(0);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => PopScope<Object?>(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, _) {
+      if (didPop || _tabHistory.isEmpty) return;
+      FocusManager.instance.primaryFocus?.unfocus();
+      setState(() => _currentIndex = _tabHistory.removeLast());
+    },
+    child: _buildNavigation(context),
+  );
+
+  Widget _buildNavigation(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 720;
 
     final screens = [
@@ -57,7 +69,6 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
         onNavigateToRecords: () => _onTabSelected(3),
         onNavigateToDimensions: () => _onTabSelected(1),
         onNavigateToSettings: () => _onTabSelected(5),
-        isActive: _currentIndex == 0,
       ),
       DimensionScreen(
         onNavigateToLand: () => _onTabSelected(0),

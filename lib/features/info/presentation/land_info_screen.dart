@@ -281,7 +281,7 @@ class _LandInfoScreenState extends State<LandInfoScreen> {
                               Expanded(
                                 flex: 4,
                                 child: DropdownButtonFormField<String>(
-                                  value: _selectedUnit,
+                                  initialValue: _selectedUnit,
                                   isExpanded: true,
                                   decoration: InputDecoration(
                                     labelText: _t('Select Unit', 'اکائی منتخب کریں'),

@@ -4,6 +4,27 @@ import 'package:plotmetric/features/scan/logic/land_document_parser.dart';
 
 void main() {
   group('LandDocumentParser tests', () {
+    test('Reads square feet and compact fractions from a plot area schedule', () {
+      const text = '''
+        SCHEDULE OF AREA
+        TOTAL AREA OF PLOT 675 SFT
+        TOTAL LAND G/FLOOR PLAN M-2 S-4-1/2
+        COVERD AREA G/FLOOR PLAN 665 SFT
+        SHADE AREA G/FLOOR PLAN 30 SFT
+        Covered Area: unreadable
+        SPECIFICATION
+      ''';
+      final items = LandDocumentParser.parseDocumentText(text);
+      expect(items.map((item) => item.purpose), [
+        'Total Area', 'Total Land', 'Covered Area', 'Shade Area',
+      ]);
+      expect(items.map((item) => item.sourceSquareFeet), ['675', null, '665', '30']);
+      expect(items.map((item) => item.centiSarsai), [2231, 2250, 2198, 99]);
+      expect(items[1].marla, 2);
+      expect(items[1].sarsaiCenti, 450);
+      expect(items[1].operation, EntryOperation.add);
+    });
+
     test('Parses standard English colony mutation text', () {
       const documentText = '''
         Ittefaq City Housing Scheme Plan

@@ -1,7 +1,9 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/calculation.dart';
-import '../../land/logic/land_math.dart';
 import '../logic/csv_exporter.dart';
 import '../logic/file_save_helper.dart';
 import '../logic/pdf_export_service.dart';
@@ -61,7 +63,7 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
     super.dispose();
   }
 
-  Future<void> _exportPdf() async {
+  Future<void> _exportPdf({bool share = false}) async {
     setState(() => _isProcessing = true);
     try {
       final bytes = PdfExportService.generateCalculationPdf(
@@ -78,19 +80,39 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
       final fileName = '${rawTitle}_$timestamp.pdf';
 
       final result = await FileSaveHelper.saveBinaryFile(fileName: fileName, bytes: bytes);
+      if (!mounted) return;
       if (result.success) {
         setState(() {
           _lastSavedFilePath = result.filePath;
           _statusMessage = 'PDF saved: ${result.fileName}';
         });
-        await FileSaveHelper.openFile(result.filePath);
+        if (share) {
+          if (!kIsWeb && Platform.isAndroid) {
+            final shared = await FileSaveHelper.shareFile(
+              result.filePath,
+              mimeType: 'application/pdf',
+              title: 'Share PDF via WhatsApp',
+              preferWhatsApp: true,
+            );
+            if (mounted && !shared) {
+              setState(() => _statusMessage = 'Could not open Android sharing. PDF saved as ${result.fileName}.');
+            }
+          } else {
+            await FileSaveHelper.openFolder(result.filePath);
+            if (mounted) {
+              setState(() => _statusMessage = 'Attach ${result.fileName} in WhatsApp.');
+            }
+          }
+        } else {
+          await FileSaveHelper.openFile(result.filePath);
+        }
       } else {
         setState(() => _statusMessage = result.errorMessage ?? 'Failed to save PDF');
       }
     } catch (e) {
-      setState(() => _statusMessage = 'Error generating PDF: $e');
+      if (mounted) setState(() => _statusMessage = 'Error generating PDF: $e');
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -152,45 +174,13 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
     }
   }
 
-  void _shareViaWhatsApp() {
-    final summary = widget.calculation.summary;
-
-    final deductionsList = <Map<String, String>>[];
-    for (final e in widget.calculation.entries) {
-      if (e.isSubtract) {
-        final centi = LandMath.rowToCentiSarsai(kanal: e.kanal, marla: e.marla, sarsaiCenti: e.sarsaiCenti);
-        final area = LandMath.centiSarsaiToCompositeArea(centi);
-        final sqFt = LandMath.centiSarsaiToSquareFeet(centi).toStringAsFixed(1);
-        deductionsList.add({
-          'name': e.purpose.isEmpty ? 'Deduction' : e.purpose,
-          'area': area.toDisplayString(),
-          'sqFt': sqFt,
-        });
-      }
-    }
-
-    final message = FileSaveHelper.formatWhatsAppSummary(
-      title: widget.calculation.title,
-      totalArea: '${summary.totalAddCompositeArea.toDisplayString()} (${summary.totalAddSqFtFormatted} sq ft)',
-      totalDeductions: '${summary.totalSubtractCompositeArea.toDisplayString()} (${summary.totalSubtractSqFtFormatted} sq ft)',
-      netBalance: summary.netCompositeArea.toDisplayString(),
-      netSqFt: summary.netSqFtFormatted,
-      deductions: deductionsList,
-      localFilePath: _lastSavedFilePath,
-    );
-
-    FileSaveHelper.shareViaWhatsApp(message);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('WhatsApp share text prepared & opened!')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final title = widget.calculation.title.isEmpty ? '(Untitled Scheme)' : widget.calculation.title;
     final summary = widget.calculation.summary;
 
     return AlertDialog(
+      scrollable: true,
       title: Row(
         children: [
           const Icon(Icons.picture_as_pdf, color: AppTheme.primaryNavy),
@@ -263,7 +253,7 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     ),
                     const SizedBox(width: 6),
                     const Text(
-                      'Customize Header, Subtitle & Summary Labels (Optional)',
+                      'Customize Report',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -399,7 +389,7 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _shareViaWhatsApp,
+                      onPressed: () => _exportPdf(share: true),
                       icon: const Icon(Icons.chat, size: 16),
                       label: const Text('WhatsApp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
@@ -449,7 +439,12 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => FileSaveHelper.openFile(_lastSavedFilePath!),
+                        onPressed: () async {
+                          final opened = await FileSaveHelper.openFile(_lastSavedFilePath!);
+                          if (!opened && mounted) {
+                            setState(() => _statusMessage = 'No viewer could open this file.');
+                          }
+                        },
                         icon: const Icon(Icons.open_in_new, size: 16),
                         label: const Text('Open File', style: TextStyle(fontSize: 12)),
                         style: ElevatedButton.styleFrom(
@@ -463,7 +458,12 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => FileSaveHelper.shareFile(_lastSavedFilePath!),
+                        onPressed: () async {
+                          final shared = await FileSaveHelper.shareFile(_lastSavedFilePath!);
+                          if (!shared && mounted) {
+                            setState(() => _statusMessage = 'Could not open sharing for this file.');
+                          }
+                        },
                         icon: const Icon(Icons.share, size: 16),
                         label: const Text('Share File', style: TextStyle(fontSize: 12)),
                         style: ElevatedButton.styleFrom(
@@ -476,6 +476,17 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     ),
                   ],
                 ),
+                if (!kIsWeb && (!Platform.isAndroid || _lastSavedFilePath!.startsWith('content://')))
+                  TextButton.icon(
+                    icon: const Icon(Icons.folder_open, size: 16),
+                    label: const Text('Open Folder'),
+                    onPressed: () async {
+                      final opened = await FileSaveHelper.openFolder(_lastSavedFilePath!);
+                      if (!opened && mounted) {
+                        setState(() => _statusMessage = 'Could not open the export folder.');
+                      }
+                    },
+                  ),
               ],
             ],
           ],

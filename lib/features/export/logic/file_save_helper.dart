@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -8,12 +9,14 @@ class ExportFileResult {
   final bool success;
   final String filePath;
   final String fileName;
+  final String? displayPath;
   final String? errorMessage;
 
   const ExportFileResult({
     required this.success,
     this.filePath = '',
     this.fileName = '',
+    this.displayPath,
     this.errorMessage,
   });
 }
@@ -54,11 +57,14 @@ class FileSaveHelper {
     required Uint8List bytes,
   }) async {
     try {
-      final dir = await getExportDirectory();
       final sanitizedName = _sanitizeFileName(fileName);
+      if (!kIsWeb && Platform.isAndroid) {
+        final saved = await NativePlatformHelper.saveAndroidExport(sanitizedName, bytes);
+        return ExportFileResult(success: true, filePath: saved.reference, fileName: saved.name, displayPath: saved.path);
+      }
+      final dir = await getExportDirectory();
       final fullPath = p.join(dir.path, sanitizedName);
-      final file = File(fullPath);
-      await file.writeAsBytes(bytes, flush: true);
+      await File(fullPath).writeAsBytes(bytes, flush: true);
 
       return ExportFileResult(
         success: true,
@@ -77,26 +83,7 @@ class FileSaveHelper {
   static Future<ExportFileResult> saveTextFile({
     required String fileName,
     required String content,
-  }) async {
-    try {
-      final dir = await getExportDirectory();
-      final sanitizedName = _sanitizeFileName(fileName);
-      final fullPath = p.join(dir.path, sanitizedName);
-      final file = File(fullPath);
-      await file.writeAsString(content, flush: true);
-
-      return ExportFileResult(
-        success: true,
-        filePath: fullPath,
-        fileName: sanitizedName,
-      );
-    } catch (e) {
-      return ExportFileResult(
-        success: false,
-        errorMessage: 'Failed to write file: $e',
-      );
-    }
-  }
+  }) => saveBinaryFile(fileName: fileName, bytes: utf8.encode(content));
 
   /// Opens the file using the host OS default viewer (e.g. PDF viewer, Word, or text editor)
   static Future<bool> openFile(String filePath, {String? mimeType}) async {
@@ -109,8 +96,8 @@ class FileSaveHelper {
   }
 
   /// Shares a file via native share sheet or reveals in host system
-  static Future<bool> shareFile(String filePath, {String? mimeType, String title = 'Share Exported File'}) async {
-    return NativePlatformHelper.shareFile(filePath, mimeType: mimeType, title: title);
+  static Future<bool> shareFile(String filePath, {String? mimeType, String title = 'Share Exported File', bool preferWhatsApp = false}) async {
+    return NativePlatformHelper.shareFile(filePath, mimeType: mimeType, title: title, preferWhatsApp: preferWhatsApp);
   }
 
   /// Generates a ready-to-share WhatsApp text message summarizing the calculation

@@ -27,15 +27,16 @@ android {
 
     buildTypes {
         release {
+            proguardFiles("proguard-rules.pro")
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 
-    applicationVariants.all {
+    applicationVariants.configureEach {
         val variantName = name
-        outputs.all { output ->
+        outputs.forEach { output ->
             val outputImpl = output as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
             outputImpl?.outputFileName = if (variantName.contains("release", ignoreCase = true)) {
                 "PlotMetric.apk"
@@ -73,6 +74,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 }
 
 flutter {

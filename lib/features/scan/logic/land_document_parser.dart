@@ -9,6 +9,7 @@ class ParsedMeasurementItem {
   int kanal;
   int marla;
   int sarsaiCenti;
+  final String? sourceSquareFeet;
 
   ParsedMeasurementItem({
     required this.operation,
@@ -16,6 +17,7 @@ class ParsedMeasurementItem {
     required this.kanal,
     required this.marla,
     required this.sarsaiCenti,
+    this.sourceSquareFeet,
   });
 
   bool get isSubtract => operation == EntryOperation.subtract;
@@ -44,6 +46,10 @@ class LandDocumentParser {
     'cut',
     'sewerage',
     'drain',
+    'coverd area',
+    'covered area',
+    'shade area',
+    'shaded area',
     'کٹوتی',
     'منہائی',
     'سڑک',
@@ -51,6 +57,14 @@ class LandDocumentParser {
   ];
 
   static const List<String> purposeKeywords = [
+    'total area of plot',
+    'total land',
+    'coverd area',
+    'covered area',
+    'shade area',
+    'shaded area',
+    'plot area',
+    'floor plan',
     'total area',
     'gross area',
     'roads',
@@ -124,11 +138,13 @@ class LandDocumentParser {
 
     // 2. Determine Operation (Add vs Deduct)
     EntryOperation operation = EntryOperation.add;
-    final isExplicitDeduct = deductionKeywords.any((kw) => lower.contains(kw)) ||
-        line.contains('-') ||
-        lower.contains('deduct') ||
-        lower.contains('sub');
-    if (isExplicitDeduct && !lower.contains('total area') && !lower.contains('gross')) {
+    final compact = _compactUnits.firstMatch(line);
+    final squareFeet = _squareFeet.firstMatch(line);
+    final isExplicitDeduct = deductionKeywords.any(lower.contains) ||
+        (compact == null && squareFeet == null && line.contains('-')) ||
+        RegExp(r'^\s*-').hasMatch(line);
+    if (isExplicitDeduct && !lower.contains('total area') &&
+        !lower.contains('total land') && !lower.contains('gross')) {
       operation = EntryOperation.subtract;
     }
 
@@ -136,6 +152,64 @@ class LandDocumentParser {
     int kanal = 0;
     int marla = 0;
     int sarsaiCenti = 0;
+
+    if (squareFeet != null) {
+      const unit = LandUnits.tenThousandthsSqFtPerCentiSarsai;
+      const maxSquareFeet = (LandUnits.maxKanal + 1) * LandUnits.centiSarsaisPerKanal * unit ~/ 10000;
+      final whole = int.tryParse(squareFeet.group(1)!.replaceAll(',', ''));
+      if (whole == null || whole > maxSquareFeet) return null;
+      final decimals = (squareFeet.group(2) ?? '').padRight(4, '0');
+      final scaled = whole * 10000 + int.parse(decimals);
+      final area = LandMath.centiSarsaiToComposite((scaled + unit ~/ 2) ~/ unit);
+      if (area.kanal > LandUnits.maxKanal) return null;
+      return ParsedMeasurementItem(
+        operation: operation,
+        purpose: purpose,
+        kanal: area.kanal,
+        marla: area.marla,
+        sarsaiCenti: area.sarsaiCenti,
+        sourceSquareFeet: squareFeet.group(2) == null ? '$whole' : '$whole.${squareFeet.group(2)}',
+      );
+    }
+
+    if (compact != null) {
+      for (final match in _compactUnits.allMatches(line)) {
+        final amount = int.tryParse(match.group(2)!);
+        if (amount == null) return null;
+        switch (match.group(1)!.toLowerCase()) {
+          case 'k':
+            kanal = amount;
+          case 'm':
+            marla = amount;
+          case 's':
+            final fraction = match.group(4);
+            if (fraction == null) {
+              sarsaiCenti = NumberFormatters.parseSarsaiToCenti(
+                '$amount${match.group(3) ?? ''}',
+              ) ?? 0;
+            } else {
+              final numerator = int.tryParse(fraction);
+              final denominator = int.tryParse(match.group(5)!);
+              if (amount > 8 || numerator == null || numerator > 99 ||
+                  denominator == null || denominator == 0 || numerator >= denominator) {
+                return null;
+              }
+              sarsaiCenti = amount * 100 + (100 * numerator + denominator ~/ 2) ~/ denominator;
+            }
+        }
+      }
+      if (kanal > LandUnits.maxKanal || marla > LandUnits.maxMarla ||
+          sarsaiCenti > LandUnits.maxSarsaiCenti) {
+        return null;
+      }
+      return ParsedMeasurementItem(
+        operation: operation,
+        purpose: purpose,
+        kanal: kanal,
+        marla: marla,
+        sarsaiCenti: sarsaiCenti,
+      );
+    }
 
     // Pattern A: "X Kanal Y Marla Z Sarsai" or "X K Y M Z S" or Urdu "X کنال Y مرلہ Z سرسائی"
     final kanalMatch = RegExp(r'(\d+)\s*(?:kanal|kanals|k|کنال)(?:\b|\s|$|[:\-,])', caseSensitive: false)
@@ -186,7 +260,8 @@ class LandDocumentParser {
     if (marla > LandUnits.maxMarla) marla = LandUnits.maxMarla;
     if (sarsaiCenti > LandUnits.maxSarsaiCenti) sarsaiCenti = LandUnits.maxSarsaiCenti;
 
-    if (kanal == 0 && marla == 0 && sarsaiCenti == 0 && purpose == 'Nil') {
+    if (kanalMatch == null && marlaMatch == null && sarsaiMatch == null &&
+        kanal == 0 && marla == 0 && sarsaiCenti == 0) {
       return null; // Not a measurement line
     }
 
@@ -199,12 +274,32 @@ class LandDocumentParser {
     );
   }
 
+  static final _squareFeet = RegExp(
+    r'(?<![\d.,])\b(\d+(?:,\d{3})*)(?:\.(\d{1,4}))?\s*(?:s\s*f\s*t|sq\.?\s*(?:ft|feet)|ft[²2]|square feet)\b',
+    caseSensitive: false,
+  );
+
+  static final _compactUnits = RegExp(
+    r'\b([kms])\s*[-–:]\s*(\d+)(\.\d{1,2})?(?:\s*[-–]\s*(\d+)\s*/\s*(\d+))?\b',
+    caseSensitive: false,
+  );
+
   static String _formatPurpose(String kw) {
     switch (kw.toLowerCase()) {
       case 'total area':
       case 'gross area':
+      case 'total area of plot':
+      case 'plot area':
       case 'کل رقبہ':
         return 'Total Area';
+      case 'total land':
+        return 'Total Land';
+      case 'coverd area':
+      case 'covered area':
+        return 'Covered Area';
+      case 'shade area':
+      case 'shaded area':
+        return 'Shade Area';
       case 'roads':
       case 'road':
       case 'سڑکیں':

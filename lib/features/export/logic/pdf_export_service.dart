@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import '../../../core/constants/land_units.dart';
 import '../../../core/utils/date_time_formatters.dart';
 import '../../../data/models/calculation.dart';
-import '../../../data/models/measurement_entry.dart';
 import '../../land/logic/land_math.dart';
 
 /// Pure Dart Black & White A4 PDF Generator for PlotMetric
@@ -603,7 +601,6 @@ class _PdfPageContent {
 }
 
 class _PdfLowLevelBuilder {
-  final List<String> _objects = [];
 
   void addPage(String pageContentStream) {
     _pageStreams.add(pageContentStream);

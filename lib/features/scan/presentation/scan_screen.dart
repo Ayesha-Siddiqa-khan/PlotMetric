@@ -60,10 +60,12 @@ Commercial Zone: 25 Kanal, 0 Marla''';
       _hasParsed = true;
     });
 
-    if (parsed.isEmpty && text.trim().isNotEmpty) {
+    if (parsed.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No recognized Kanal/Marla/Sarsai figures found in the text.'),
+        SnackBar(
+          content: Text(text.trim().isEmpty
+              ? 'Scan a plan or enter document text first.'
+              : 'No land measurements were recognized in the text.'),
           backgroundColor: AppTheme.dangerRed,
         ),
       );
@@ -215,10 +217,12 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
   }
 
   Future<void> _processPickedFile(String filePath) async {
+    if (!mounted || _isOcrProcessing) return;
     final ext = filePath.split('.').last.toLowerCase();
     if (ext == 'txt' || ext == 'csv') {
       try {
         final text = await File(filePath).readAsString();
+        if (!mounted) return;
         setState(() {
           _previewImagePath = null;
           _documentTextController.text = text;
@@ -227,7 +231,7 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Loaded document: ${filePath.split('\\').last}'),
+              content: Text('Loaded document: ${Uri.file(filePath).pathSegments.last}'),
               backgroundColor: AppTheme.accentTeal,
             ),
           );
@@ -243,12 +247,19 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
       setState(() {
         _previewImagePath = filePath;
         _isOcrProcessing = true;
+        _documentTextController.clear();
+        _extractedItems.clear();
+        _hasParsed = false;
       });
 
       String ocrText = '';
+      bool ocrFailed = false;
       try {
-        final escaped = filePath.replaceAll("'", "''");
-        final ocrScript = '''
+        if (Platform.isAndroid) {
+          ocrText = (await NativePlatformHelper.recognizeImageText(filePath)).trim();
+        } else if (Platform.isWindows) {
+          final escaped = filePath.replaceAll("'", "''");
+          final ocrScript = '''
 [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime] | Out-Null
 [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType = WindowsRuntime] | Out-Null
 [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime] | Out-Null
@@ -260,12 +271,18 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 \$engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
 if (\$engine) {
     \$ocrResult = \$engine.RecognizeAsync(\$softwareBitmap).GetAwaiter().GetResult()
-    Write-Output \$ocrResult.Text
+    \$ocrResult.Lines | ForEach-Object { Write-Output \$_.Text }
 }
 ''';
-        final ocrProcess = await Process.run('powershell', ['-NoProfile', '-Command', ocrScript]);
-        ocrText = ocrProcess.stdout.toString().trim();
-      } catch (_) {}
+          final ocrProcess = await Process.run('powershell', ['-NoProfile', '-Command', ocrScript]);
+          ocrFailed = ocrProcess.exitCode != 0;
+          ocrText = ocrProcess.stdout.toString().trim();
+        } else {
+          ocrFailed = true;
+        }
+      } catch (_) {
+        ocrFailed = true;
+      }
 
       if (mounted) {
         setState(() {
@@ -277,16 +294,12 @@ if (\$engine) {
 
         if (ocrText.isNotEmpty) {
           _parseCurrentText();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Document OCR scan complete! Measurements extracted.'),
-              backgroundColor: AppTheme.accentTeal,
-            ),
-          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Image loaded for visual review. You can paste or type document figures.'),
+            SnackBar(
+              content: Text(ocrFailed
+                  ? 'Could not scan this image. Try another photo or enter the figures manually.'
+                  : 'No text found. Try a close, sharp photo of the area schedule.'),
               backgroundColor: AppTheme.primaryNavy,
             ),
           );
@@ -374,7 +387,7 @@ if (\$engine) {
               onPressed: _openExportDialog,
             ),
           TextButton.icon(
-            onPressed: _loadSampleDocument,
+            onPressed: _isOcrProcessing ? null : _loadSampleDocument,
             icon: const Icon(Icons.auto_fix_high, color: Colors.white, size: 18),
             label: const Text(
               'Sample Plan',
@@ -431,7 +444,7 @@ if (\$engine) {
                           children: [
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: _takePhotoOrScan,
+                                onPressed: _isOcrProcessing ? null : _takePhotoOrScan,
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                                   side: const BorderSide(color: AppTheme.primaryNavy),
@@ -456,7 +469,7 @@ if (\$engine) {
                             const SizedBox(width: 8),
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: _chooseImageOrDocument,
+                                onPressed: _isOcrProcessing ? null : _chooseImageOrDocument,
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                                   side: const BorderSide(color: AppTheme.primaryNavy),
@@ -481,7 +494,7 @@ if (\$engine) {
                             const SizedBox(width: 8),
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: _loadSampleDocument,
+                                onPressed: _isOcrProcessing ? null : _loadSampleDocument,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.accentTeal,
                                   foregroundColor: Colors.white,
@@ -516,7 +529,7 @@ if (\$engine) {
                                 child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accentTeal),
                               ),
                               SizedBox(width: 8),
-                              Text('Running Windows OCR text extraction on image...', style: TextStyle(fontSize: 12, color: AppTheme.accentTeal)),
+                              Text('Reading text from the image…', style: TextStyle(fontSize: 12, color: AppTheme.accentTeal)),
                             ],
                           ),
                         ],
@@ -538,7 +551,7 @@ if (\$engine) {
                                     width: 60,
                                     height: 60,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 40),
+                                    errorBuilder: (_, _, _) => const Icon(Icons.broken_image, size: 40),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -548,7 +561,7 @@ if (\$engine) {
                                     children: [
                                       const Text('Selected Image:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                       Text(
-                                        _previewImagePath!.split('\\').last,
+                                      Uri.file(_previewImagePath!).pathSegments.last,
                                         style: const TextStyle(fontSize: 12, color: AppTheme.primaryNavy),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -558,7 +571,7 @@ if (\$engine) {
                                 IconButton(
                                   icon: const Icon(Icons.close, size: 18),
                                   tooltip: 'Clear image',
-                                  onPressed: () => setState(() => _previewImagePath = null),
+                                  onPressed: _isOcrProcessing ? null : () => setState(() => _previewImagePath = null),
                                 ),
                               ],
                             ),
@@ -568,6 +581,7 @@ if (\$engine) {
                         // Raw text input area
                         TextField(
                           controller: _documentTextController,
+                          readOnly: _isOcrProcessing,
                           maxLines: 4,
                           decoration: InputDecoration(
                             labelText: 'Document Text / OCR Output',
@@ -576,7 +590,7 @@ if (\$engine) {
                             fillColor: AppTheme.paleBackground,
                             suffixIcon: IconButton(
                               icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
+                              onPressed: _isOcrProcessing ? null : () {
                                 _documentTextController.clear();
                                 setState(() {
                                   _extractedItems.clear();
@@ -590,7 +604,7 @@ if (\$engine) {
                         Align(
                           alignment: Alignment.centerRight,
                           child: ElevatedButton.icon(
-                            onPressed: _parseCurrentText,
+                            onPressed: _isOcrProcessing ? null : _parseCurrentText,
                             icon: const Icon(Icons.analytics_outlined, size: 18),
                             label: const Text('Extract Measurements'),
                             style: ElevatedButton.styleFrom(
@@ -859,7 +873,7 @@ if (\$engine) {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    item.sqFtFormatted,
+                    item.sourceSquareFeet == null ? item.sqFtFormatted : '${item.sourceSquareFeet} sq ft (plan)',
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       fontSize: 12,
@@ -893,7 +907,7 @@ if (\$engine) {
           SizedBox(
             width: 85,
             child: Text(
-              item.sqFtFormatted,
+              item.sourceSquareFeet == null ? item.sqFtFormatted : '${item.sourceSquareFeet} sq ft (plan)',
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontSize: 11,

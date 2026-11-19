@@ -1,8 +1,10 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../data/models/calculation.dart';
 import '../../export/logic/csv_exporter.dart';
 import '../../export/logic/file_save_helper.dart';
 import '../../export/logic/pdf_export_service.dart';
@@ -50,8 +52,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: jsonString);
       if (result.success) {
-        _showNotification('Backup successfully created at:\n${result.filePath}');
-        _showFileResultDialog('Database Backup Created', result.filePath, fileName);
+        _showNotification('Backup successfully created.');
+        _showFileResultDialog('Database Backup Created', result, backupText: jsonString);
       } else {
         _showNotification(result.errorMessage ?? 'Failed to save backup.', isSuccess: false);
       }
@@ -166,7 +168,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final result = await FileSaveHelper.saveBinaryFile(fileName: fileName, bytes: bytes);
         if (result.success) {
           _showNotification('A4 Black & White PDF exported successfully!');
-          _showFileResultDialog('A4 PDF Export Complete', result.filePath, fileName);
+          _showFileResultDialog('A4 PDF Export Complete', result);
         } else {
           _showNotification(result.errorMessage ?? 'Failed to save PDF.', isSuccess: false);
         }
@@ -176,7 +178,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: content);
         if (result.success) {
           _showNotification('Word document (.doc) exported successfully!');
-          _showFileResultDialog('Word Document Export Complete', result.filePath, fileName);
+          _showFileResultDialog('Word Document Export Complete', result);
         } else {
           _showNotification(result.errorMessage ?? 'Failed to save Word document.', isSuccess: false);
         }
@@ -186,7 +188,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: content);
         if (result.success) {
           _showNotification('CSV spreadsheet exported successfully!');
-          _showFileResultDialog('CSV Export Complete', result.filePath, fileName);
+          _showFileResultDialog('CSV Export Complete', result);
         } else {
           _showNotification(result.errorMessage ?? 'Failed to save CSV.', isSuccess: false);
         }
@@ -245,68 +247,147 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  void _showFileResultDialog(String title, String filePath, String fileName) {
+  void _showFileResultDialog(String title, ExportFileResult file, {String? backupText, String? feedback}) {
+    final filePath = file.filePath;
+    final fileName = file.fileName;
+    final displayPath = file.displayPath ?? filePath;
+    final isDownloads = filePath.startsWith('content://');
     showDialog(
       context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          void showFeedback(String message) {
+            if (dialogContext.mounted) setDialogState(() => feedback = message);
+          }
+
+          return AlertDialog(
+            scrollable: true,
+            title: Text(title),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('File: $fileName', style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (isDownloads) const Text('Downloads / PlotMetric_Exports'),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.paleBackground,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppTheme.dividerColor),
+                  ),
+                  child: SelectableText(displayPath, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                ),
+                const SizedBox(height: 12),
+                if (feedback != null) Text(feedback!, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+            actions: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.share, size: 16),
+                label: const Text('Share (WhatsApp/Drive)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  if (!await FileSaveHelper.shareFile(filePath, title: 'Share $fileName')) {
+                    showFeedback('Could not open sharing for this file.');
+                  }
+                },
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('Open File'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryNavy,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  if (backupText != null && !kIsWeb && Platform.isAndroid) {
+                    await _showBackupText(dialogContext, fileName, backupText);
+                  } else if (!await FileSaveHelper.openFile(filePath)) {
+                    showFeedback('No viewer could open this file.');
+                  }
+                },
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.copy, size: 16),
+                label: const Text('Copy Path'),
+                onPressed: () async {
+                  try {
+                    await Clipboard.setData(ClipboardData(text: displayPath));
+                    showFeedback('File path copied to clipboard.');
+                  } catch (_) {
+                    showFeedback('Could not copy the file path.');
+                  }
+                },
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.folder_open, size: 16),
+                label: const Text('Open Folder'),
+                onPressed: () async {
+                  if (await FileSaveHelper.openFolder(filePath)) return;
+                  if (!kIsWeb && Platform.isAndroid && !isDownloads && dialogContext.mounted) {
+                    try {
+                      await _showPrivateExportFolder(dialogContext, File(filePath).parent);
+                    } on FileSystemException {
+                      showFeedback('Could not read the export folder.');
+                    }
+                  } else {
+                    showFeedback('Open Downloads / PlotMetric_Exports in your file manager.');
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showBackupText(BuildContext context, String name, String text) => showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      scrollable: true,
+      title: Text(name),
+      content: SelectableText(text, style: const TextStyle(fontFamily: 'monospace')),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+    ),
+  );
+
+  Future<void> _showPrivateExportFolder(BuildContext context, Directory directory) async {
+    final files = await directory.list().where((entry) => entry is File).cast<File>().toList();
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
+        scrollable: true,
+        title: const Text('PlotMetric Exports'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('File: $fileName', style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.paleBackground,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppTheme.dividerColor),
-              ),
-              child: SelectableText(filePath, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'You can open this file now, share it via WhatsApp / Drive, or reveal it in your file explorer.',
-              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton.icon(
-            icon: const Icon(Icons.share, size: 16),
-            label: const Text('Share (WhatsApp/Drive)'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF25D366),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => FileSaveHelper.shareFile(filePath, title: 'Share $fileName'),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Open File'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryNavy,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => FileSaveHelper.openFile(filePath),
-          ),
-          TextButton.icon(
-            icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copy Path'),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: filePath));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('File path copied to clipboard')),
-              );
+          children: [for (final file in files) ListTile(
+            title: Text(Uri.file(file.path).pathSegments.last),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              Navigator.pop(ctx);
+              final name = Uri.file(file.path).pathSegments.last;
+              final isBackup = name.toLowerCase().endsWith('.json');
+              String? backup;
+              try {
+                if (isBackup) backup = await file.readAsString();
+              } on FileSystemException {
+                if (mounted) _showNotification('Could not read this backup.', isSuccess: false);
+                return;
+              }
+              if (!mounted) return;
+              _showFileResultDialog('Exported File', ExportFileResult(
+                success: true, filePath: file.path, fileName: name,
+              ), backupText: backup);
             },
-          ),
-          TextButton.icon(
-            icon: const Icon(Icons.folder_open, size: 16),
-            label: const Text('Open Folder'),
-            onPressed: () => FileSaveHelper.openFolder(filePath),
-          ),
-        ],
+          )],
+        ),
       ),
     );
   }
@@ -368,7 +449,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                     final fileName = 'PlotMetric_Backup_$timestamp.json';
                                     final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: jsonString);
                                     if (result.success) {
-                                      await FileSaveHelper.shareFile(result.filePath, title: 'Share Database Backup via WhatsApp / Drive');
+                                      final shared = await FileSaveHelper.shareFile(result.filePath, title: 'Share Database Backup via WhatsApp / Drive');
+                                      if (!shared && mounted) {
+                                        _showFileResultDialog('Database Backup Created', result, backupText: jsonString, feedback: 'Could not open sharing for this file.');
+                                      }
                                     } else {
                                       _showNotification('Failed to generate backup: ${result.errorMessage}', isSuccess: false);
                                     }

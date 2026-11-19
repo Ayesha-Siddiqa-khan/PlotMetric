@@ -36,6 +36,15 @@ void main() {
     expect(find.text('Records'), findsOneWidget);
     expect(find.text('Scan'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
+
+    final purpose = find.byWidgetPredicate(
+      (widget) => widget is EditableText && widget.controller.text == 'Nil',
+    );
+    expect(purpose, findsOneWidget);
+    expect(find.text('Roads'), findsNothing);
+    await tester.tap(purpose);
+    await tester.pumpAndSettle();
+    expect(find.text('Roads'), findsOneWidget);
   });
 
   testWidgets('Tapping Settings tab opens Settings & Data Management', (WidgetTester tester) async {
@@ -94,6 +103,19 @@ void main() {
     expect(find.text('AC'), findsOneWidget);
     expect(find.text('±'), findsOneWidget);
     expect(find.text('%'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Settings & Data Management'), findsOneWidget);
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.text('Everyday Calculator'), findsOneWidget);
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.text('Land Calculator'), findsOneWidget);
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.text('Land Calculator'), findsOneWidget);
   });
 
   testWidgets('Tapping Scan tab opens functional OCR & Document Scanner', (WidgetTester tester) async {

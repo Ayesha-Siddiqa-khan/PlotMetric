@@ -5,6 +5,25 @@ import 'package:flutter/services.dart';
 class NativePlatformHelper {
   static const MethodChannel _channel = MethodChannel('com.plotmetric.plotmetric/native');
 
+  static Future<String> recognizeImageText(String filePath) async {
+    return await _channel.invokeMethod<String>('recognizeImageText', {
+      'filePath': filePath,
+    }) ?? '';
+  }
+
+  static Future<({String reference, String path, String name})> saveAndroidExport(
+    String fileName,
+    Uint8List bytes,
+  ) async {
+    final saved = await _channel.invokeMapMethod<String, String>('saveExport', {
+      'fileName': fileName,
+      'mimeType': _detectMimeType(fileName),
+      'bytes': bytes,
+    });
+    if (saved == null) throw StateError('Android did not return a saved file.');
+    return (reference: saved['reference']!, path: saved['path']!, name: saved['name']!);
+  }
+
   /// Shares plain text message using native Android share sheet (WhatsApp, Gmail, Drive, etc.)
   static Future<bool> shareText(String text, {String title = 'Share via'}) async {
     if (kIsWeb) return false;
@@ -23,7 +42,7 @@ class NativePlatformHelper {
   }
 
   /// Shares a file attachment using native Android share sheet (WhatsApp, Gmail, Drive, etc.)
-  static Future<bool> shareFile(String filePath, {String? mimeType, String title = 'Share File'}) async {
+  static Future<bool> shareFile(String filePath, {String? mimeType, String title = 'Share File', bool preferWhatsApp = false}) async {
     if (kIsWeb) return false;
     if (Platform.isAndroid) {
       try {
@@ -32,6 +51,7 @@ class NativePlatformHelper {
           'filePath': filePath,
           'mimeType': effectiveMime,
           'title': title,
+          'preferWhatsApp': preferWhatsApp,
         });
         return res ?? true;
       } catch (_) {
@@ -147,6 +167,7 @@ class NativePlatformHelper {
   }
 
   static String _detectMimeType(String filePath) {
+    if (filePath.startsWith('content://')) return '*/*';
     final ext = filePath.split('.').last.toLowerCase();
     switch (ext) {
       case 'pdf':

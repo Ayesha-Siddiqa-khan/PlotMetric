@@ -75,6 +75,7 @@ class MeasurementRowWidget extends StatelessWidget {
       textEditingController: row.purposeController,
       optionsBuilder: (TextEditingValue textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
+        if (query == 'nil') return const <String>[];
         if (query.isEmpty) {
           return purposeSuggestions;
         }

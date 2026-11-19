@@ -49,7 +49,6 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
   // Square Yards Checkbox (Default false / unchecked as requested)
   bool _includeSqYards = false;
   bool _userEditedPlotLabel = false;
-  bool _userEditedDirectLabel = false;
 
   @override
   void initState() {
@@ -203,7 +202,6 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
       _directLabelCtrl.clear();
       _includeSqYards = false;
       _userEditedPlotLabel = false;
-      _userEditedDirectLabel = false;
     });
 
     if (_selectedMode == 0) {
@@ -679,7 +677,6 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       setState(() {
                         _directSqFtCtrl.text = p.sqFt.toString();
                         _directLabelCtrl.text = p.label;
-                        _userEditedDirectLabel = true;
                       });
                     },
                   );
@@ -696,9 +693,6 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                   prefixIcon: Icon(Icons.label_outline, size: 18),
                 ),
                 onTap: () => _handleFieldTap(_directLabelCtrl, 'Custom Plot Area'),
-                onChanged: (val) {
-                  _userEditedDirectLabel = val.trim().isNotEmpty;
-                },
               ),
             ],
           ),
