@@ -111,11 +111,11 @@ void main() {
     // Verify Functional OCR Scanner interface
     expect(find.text('OCR & Document Scanner'), findsOneWidget);
     expect(find.text('Sample Plan'), findsOneWidget);
-    expect(find.text('Load Scheme Sample'), findsOneWidget);
+    expect(find.text('Load Scheme'), findsOneWidget);
     expect(find.text('Extract Measurements'), findsOneWidget);
 
-    // Tap 'Load Scheme Sample'
-    await tester.tap(find.text('Load Scheme Sample'));
+    // Tap 'Load Scheme'
+    await tester.tap(find.text('Load Scheme'));
     await tester.pumpAndSettle();
 
     // Verify Mandatory Review section appears with parsed entries
