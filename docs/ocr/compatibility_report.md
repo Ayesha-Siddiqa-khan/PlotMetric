@@ -38,12 +38,7 @@ Both PaddleOCR packages were already in `pubspec.yaml` before this work. Buildin
 * **Android – `paddle_ocr_native` 0.1.1.** It declares `minSdk 26` and ships `arm64-v8a` only. PlotMetric's `minSdk` is 24, so Gradle stops with *"Manifest merger failed: uses-sdk:minSdkVersion 24 cannot be smaller than version 26"*. Raising `minSdk` would drop Android 7.x devices, and an ABI filter would drop 32-bit phones, so it was not done. The package also asks for Java 17 and Android SDK 36.
 * **Windows – `pp_ocr` 0.5.5.** Its CMake step requires OpenCV (`OpenCV_DIR`), which is not installed, so *"Unable to generate build files"*. It also does not bundle models: `det.onnx`, `rec.onnx` and `dict.txt` must be supplied.
 
-Decision recorded: keep `minSdk 24`, and remove both packages. Run these two commands yourself (the project does not install or remove packages automatically):
-
-```
-flutter pub remove paddle_ocr_native
-flutter pub remove pp_ocr
-```
+Decision recorded: keep `minSdk 24`, and remove both packages. This has been done (`flutter pub remove --offline paddle_ocr_native pp_ocr`).
 
 The app code no longer imports either package. The engine list shows *PaddleOCR – Disabled* with the reason.
 
@@ -79,10 +74,10 @@ One more observation: on this machine the first Android build attempts failed in
 
 ## Behaviour changes you should know about
 
-* **Square feet no longer fill empty cells.** Earlier versions wrote a K/M/S value computed from the scanned square feet into cells that were not read. That invents data, so now the cell stays empty, the row is marked *Needs review*, and the row editor offers "Use suggestion".
-* **Disagreeing figures need a decision.** When the scanned square feet and the scanned K/M/S differ by more than one Marla, the row cannot be confirmed until a person chooses "Keep the K/M/S" or "Use the square feet" in the row editor. Both scanned values stay stored.
-* **Typing K/M/S no longer overwrites the scanned square feet.**
+* **OCR reads only the serial number, description, Kanal, Marla and Sarsai.** Square feet and the percentage are calculated by the app (Kanal x 20 x 272.25 and so on, in exact integer arithmetic; % = area / the Total Area row). The printed square-feet and % columns are not read into the table at all; they are only kept out of the Kanal/Marla/Sarsai columns. This replaces the earlier "scanned square feet versus K/M/S decision" idea, at your request.
+* A cell that was not read stays empty and the row is marked *Needs review*; nothing is filled in from another column.
 * A re-scan never replaces worksheet rows that recorded transfers refer to, and OCR never creates a Fard or Intiqal transfer.
+* The square-feet box in the row editor is only a converter: typing a value fills Kanal/Marla/Sarsai and is not stored.
 
 ## Not done, by design or for lack of a target
 

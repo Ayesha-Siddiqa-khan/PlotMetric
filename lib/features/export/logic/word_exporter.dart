@@ -17,7 +17,9 @@ class WordExporter {
   }) {
     return exportCalculations(
       [calculation],
-      title: calculation.title.isEmpty ? 'Colony Land Measurement Report' : calculation.title,
+      title: calculation.title.isEmpty
+          ? 'Colony Land Measurement Report'
+          : calculation.title,
       subtitle: subtitle,
       metadataLine: metadataLine,
       summaryTitle: summaryTitle,
@@ -39,8 +41,10 @@ class WordExporter {
     String? netBalanceLabel,
   }) {
     final buffer = StringBuffer();
-    final effectiveSubtitle = (subtitle ?? 'LAND MEASUREMENT & COLONY DEDUCTION REPORT').trim();
-    final defaultGeneratedOn = 'Generated: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas | 1 Marla = 9 Sarsais (272.25 sq ft) | 1 Sarsai = 30.25 sq ft';
+    final effectiveSubtitle =
+        (subtitle ?? 'LAND MEASUREMENT & COLONY DEDUCTION REPORT').trim();
+    final defaultGeneratedOn =
+        'Generated: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas | 1 Marla = 9 Sarsais (272.25 sq ft) | 1 Sarsai = 30.25 sq ft';
     final effectiveMetadata = (metadataLine ?? defaultGeneratedOn).trim();
 
     buffer.writeln('''
@@ -161,13 +165,21 @@ table.data-table td {
 
     for (int calcIdx = 0; calcIdx < calculations.length; calcIdx++) {
       final calc = calculations[calcIdx];
-      final displayDate = DateTimeFormatters.storageToDisplayDate(calc.calculationDate);
-      final displayTime = DateTimeFormatters.storageToDisplayTime(calc.calculationTime);
+      final displayDate = DateTimeFormatters.storageToDisplayDate(
+        calc.calculationDate,
+      );
+      final displayTime = DateTimeFormatters.storageToDisplayTime(
+        calc.calculationTime,
+      );
 
       buffer.writeln('<div class="scheme-card">');
       if (calculations.length > 1) {
-        buffer.writeln('<div class="scheme-header">Scheme #${calcIdx + 1}: ${_escapeHtml(calc.title.isEmpty ? "(Untitled)" : calc.title)}</div>');
-        buffer.writeln('<div class="scheme-meta">Date: $displayDate &nbsp;|&nbsp; Time: $displayTime</div>');
+        buffer.writeln(
+          '<div class="scheme-header">Scheme #${calcIdx + 1}: ${_escapeHtml(calc.title.isEmpty ? "(Untitled)" : calc.title)}</div>',
+        );
+        buffer.writeln(
+          '<div class="scheme-meta">Date: $displayDate &nbsp;|&nbsp; Time: $displayTime</div>',
+        );
       }
 
       buffer.writeln('''
@@ -203,10 +215,13 @@ table.data-table td {
         }
 
         final area = LandMath.centiSarsaiToCompositeArea(rowCenti);
-        final sqFt = LandMath.centiSarsaiToSquareFeet(rowCenti).toStringAsFixed(2);
+        final sqFt = LandMath.centiSarsaiToSquareFeet(
+          rowCenti,
+        ).toStringAsFixed(2);
         final balArea = LandMath.centiSarsaiToCompositeArea(runningCenti.abs());
         final balSign = runningCenti < 0 ? '-' : '';
-        final balStr = '$balSign${balArea.kanal}K - ${balArea.marla}M - ${balArea.sarsaiFormatted}S';
+        final balStr =
+            '$balSign${balArea.kanal}K - ${balArea.marla}M - ${balArea.sarsaiFormatted}S';
 
         buffer.writeln('''
     <tr>
@@ -228,10 +243,26 @@ table.data-table td {
 ''');
 
       final summary = calc.summary;
-      final effectiveSummaryTitle = _escapeHtml((summaryTitle != null && summaryTitle.trim().isNotEmpty) ? summaryTitle.trim() : 'SUMMARY & NET REMAINING BALANCE');
-      final effectiveAreaLabel = _escapeHtml((totalAreaLabel != null && totalAreaLabel.trim().isNotEmpty) ? totalAreaLabel.trim() : 'Total Colony Area (+)');
-      final effectiveDeductionsLabel = _escapeHtml((totalDeductionsLabel != null && totalDeductionsLabel.trim().isNotEmpty) ? totalDeductionsLabel.trim() : 'Total Deductions (Roads/Parks/Mosque) (-)');
-      final effectiveNetLabel = _escapeHtml((netBalanceLabel != null && netBalanceLabel.trim().isNotEmpty) ? netBalanceLabel.trim() : 'NET REMAINING BALANCE');
+      final effectiveSummaryTitle = _escapeHtml(
+        (summaryTitle != null && summaryTitle.trim().isNotEmpty)
+            ? summaryTitle.trim()
+            : 'SUMMARY & NET REMAINING BALANCE',
+      );
+      final effectiveAreaLabel = _escapeHtml(
+        (totalAreaLabel != null && totalAreaLabel.trim().isNotEmpty)
+            ? totalAreaLabel.trim()
+            : 'Total Colony Area (+)',
+      );
+      final effectiveDeductionsLabel = _escapeHtml(
+        (totalDeductionsLabel != null && totalDeductionsLabel.trim().isNotEmpty)
+            ? totalDeductionsLabel.trim()
+            : 'Total Deductions (Roads/Parks/Mosque) (-)',
+      );
+      final effectiveNetLabel = _escapeHtml(
+        (netBalanceLabel != null && netBalanceLabel.trim().isNotEmpty)
+            ? netBalanceLabel.trim()
+            : 'NET REMAINING BALANCE',
+      );
 
       buffer.writeln('''
 <div class="summary-box">
@@ -249,6 +280,65 @@ table.data-table td {
 </html>
 ''');
 
+    return buffer.toString();
+  }
+
+  /// A landscape Word document holding one table (any headers, any rows).
+  static String exportTable({
+    required String title,
+    String? subtitle,
+    String? metadataLine,
+    required List<String> headers,
+    required List<List<String>> rows,
+    List<bool>? centredColumns,
+  }) {
+    bool centred(int i) =>
+        centredColumns != null &&
+        i < centredColumns.length &&
+        centredColumns[i];
+    final buffer = StringBuffer()
+      ..writeln('''
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset='utf-8'>
+<title>${_escapeHtml(title)}</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>
+  @page { size: 29.7cm 21cm; mso-page-orientation: landscape; margin: 1.2cm; }
+  body { font-family: Arial, sans-serif; font-size: 9pt; }
+  h1 { text-align: center; font-size: 15pt; margin: 0 0 2pt 0; }
+  p.sub { text-align: center; margin: 0 0 8pt 0; font-size: 9pt; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #000; padding: 3pt 4pt; vertical-align: top; }
+  th { background: #e6e6e6; text-align: center; }
+  td.c { text-align: center; }
+</style>
+</head>
+<body>
+<h1>${_escapeHtml(title)}</h1>''');
+    if (subtitle != null && subtitle.trim().isNotEmpty) {
+      buffer.writeln("<p class='sub'><b>${_escapeHtml(subtitle)}</b></p>");
+    }
+    if (metadataLine != null && metadataLine.trim().isNotEmpty) {
+      buffer.writeln("<p class='sub'>${_escapeHtml(metadataLine)}</p>");
+    }
+    buffer.writeln('<table>');
+    buffer.writeln(
+      '<tr>${headers.map((h) => '<th>${_escapeHtml(h)}</th>').join()}</tr>',
+    );
+    for (final row in rows) {
+      buffer.write('<tr>');
+      for (var i = 0; i < headers.length; i++) {
+        final value = i < row.length ? row[i] : '';
+        buffer.write(
+          "<td${centred(i) ? " class='c'" : ''}>${_escapeHtml(value)}</td>",
+        );
+      }
+      buffer.writeln('</tr>');
+    }
+    buffer.writeln('</table>\n</body>\n</html>');
     return buffer.toString();
   }
 

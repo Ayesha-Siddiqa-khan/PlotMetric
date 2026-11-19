@@ -6,8 +6,7 @@ enum ResultField {
   description('Description'),
   kanal('Kanal'),
   marla('Marla'),
-  sarsai('Sarsai'),
-  sft('Sq ft');
+  sarsai('Sarsai');
 
   const ResultField(this.label);
   final String label;
@@ -17,7 +16,6 @@ enum ResultField {
     kanal => row.kanal,
     marla => row.marla,
     sarsai => row.sarsai,
-    sft => row.sft,
   };
 }
 
@@ -69,8 +67,6 @@ class CombinedTable {
         row.marla = value;
       case ResultField.sarsai:
         row.sarsai = value;
-      case ResultField.sft:
-        row.sft = value;
     }
   }
 
@@ -184,7 +180,6 @@ BenchmarkScore scoreRows(List<ExpectedRow> expected, List<SchemeRow> actual) {
       ResultField.kanal: row.kanal,
       ResultField.marla: row.marla,
       ResultField.sarsai: row.sarsai,
-      ResultField.sft: row.sft,
     };
     for (final entry in wanted.entries) {
       if (entry.value.isEmpty) continue;

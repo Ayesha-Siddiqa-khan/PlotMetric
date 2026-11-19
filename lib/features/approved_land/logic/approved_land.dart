@@ -16,7 +16,9 @@ class LandAreaText {
     final matches = _token.allMatches(value).toList();
     if (matches.isEmpty) return null;
     // Only separators may sit between the parts.
-    final leftover = value.replaceAll(_token, '').replaceAll(RegExp(r'[\s,\-/.]+'), '');
+    final leftover = value
+        .replaceAll(_token, '')
+        .replaceAll(RegExp(r'[\s,\-/.]+'), '');
     if (leftover.isNotEmpty) return null;
     final parts = <String, String>{};
     for (final match in matches) {
@@ -24,7 +26,11 @@ class LandAreaText {
       if (parts.containsKey(unit)) return null;
       parts[unit] = match.group(1)!;
     }
-    return SchemeArea.land(parts['K'] ?? '0', parts['M'] ?? '0', parts['S'] ?? '0');
+    return SchemeArea.land(
+      parts['K'] ?? '0',
+      parts['M'] ?? '0',
+      parts['S'] ?? '0',
+    );
   }
 
   /// Canonical "K-M-S" text for a stored area (negative values get a leading minus).
@@ -43,9 +49,13 @@ class LandAreaText {
     final area = parse(value);
     if (area != null) return format(area);
     final matches = _token.allMatches(value).toList();
-    final leftover = value.replaceAll(_token, '').replaceAll(RegExp(r'[\s,\-/.]+'), '');
+    final leftover = value
+        .replaceAll(_token, '')
+        .replaceAll(RegExp(r'[\s,\-/.]+'), '');
     if (matches.isEmpty || leftover.isNotEmpty) return value;
-    return matches.map((m) => '${m.group(1)}${m.group(2)!.toUpperCase()}').join('-');
+    return matches
+        .map((m) => '${m.group(1)}${m.group(2)!.toUpperCase()}')
+        .join('-');
   }
 }
 
@@ -78,7 +88,9 @@ class ApprovedLandEntry {
   static String computeRemaining(String transferTotal, String transferred) {
     final total = LandAreaText.parse(transferTotal);
     if (total == null) return '';
-    final done = transferred.trim().isEmpty ? 0 : LandAreaText.parse(transferred);
+    final done = transferred.trim().isEmpty
+        ? 0
+        : LandAreaText.parse(transferred);
     return done == null ? '' : LandAreaText.format(total - done);
   }
 
@@ -112,20 +124,21 @@ class ApprovedLandEntry {
     'scheme_id': schemeId,
   };
 
-  factory ApprovedLandEntry.fromDb(Map<String, Object?> row) => ApprovedLandEntry(
-    id: row['id'] as int?,
-    serial: row['serial'] as int?,
-    name: row['name'] as String? ?? '',
-    owner: row['owner'] as String? ?? '',
-    mouza: row['mouza'] as String? ?? '',
-    totalArea: row['total_area'] as String? ?? '',
-    transferTotal: row['transfer_total'] as String? ?? '',
-    transferred: row['transferred'] as String? ?? '',
-    remaining: row['remaining'] as String? ?? '',
-    mortgage: row['mortgage'] as String? ?? '',
-    note: row['note'] as String? ?? '',
-    schemeId: row['scheme_id'] as int?,
-  );
+  factory ApprovedLandEntry.fromDb(Map<String, Object?> row) =>
+      ApprovedLandEntry(
+        id: row['id'] as int?,
+        serial: row['serial'] as int?,
+        name: row['name'] as String? ?? '',
+        owner: row['owner'] as String? ?? '',
+        mouza: row['mouza'] as String? ?? '',
+        totalArea: row['total_area'] as String? ?? '',
+        transferTotal: row['transfer_total'] as String? ?? '',
+        transferred: row['transferred'] as String? ?? '',
+        remaining: row['remaining'] as String? ?? '',
+        mortgage: row['mortgage'] as String? ?? '',
+        note: row['note'] as String? ?? '',
+        schemeId: row['scheme_id'] as int?,
+      );
 
   Map<String, dynamic> toJson() => {
     'serial': serial,
@@ -140,16 +153,17 @@ class ApprovedLandEntry {
     'note': note,
   };
 
-  factory ApprovedLandEntry.fromJson(Map<String, dynamic> map) => ApprovedLandEntry(
-    serial: (map['serial'] as num?)?.toInt(),
-    name: map['name'] as String? ?? '',
-    owner: map['owner'] as String? ?? '',
-    mouza: map['mouza'] as String? ?? '',
-    totalArea: map['total_area'] as String? ?? '',
-    transferTotal: map['transfer_total'] as String? ?? '',
-    transferred: map['transferred'] as String? ?? '',
-    remaining: map['remaining'] as String? ?? '',
-    mortgage: map['mortgage'] as String? ?? '',
-    note: map['note'] as String? ?? '',
-  );
+  factory ApprovedLandEntry.fromJson(Map<String, dynamic> map) =>
+      ApprovedLandEntry(
+        serial: (map['serial'] as num?)?.toInt(),
+        name: map['name'] as String? ?? '',
+        owner: map['owner'] as String? ?? '',
+        mouza: map['mouza'] as String? ?? '',
+        totalArea: map['total_area'] as String? ?? '',
+        transferTotal: map['transfer_total'] as String? ?? '',
+        transferred: map['transferred'] as String? ?? '',
+        remaining: map['remaining'] as String? ?? '',
+        mortgage: map['mortgage'] as String? ?? '',
+        note: map['note'] as String? ?? '',
+      );
 }

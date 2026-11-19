@@ -45,9 +45,6 @@ dependencies:
   http: ^1.6.0
   image_picker: ^1.2.4
   image_cropper: ^12.2.1
-  paddle_ocr_native: ^0.1.1
-  pp_ocr: ^0.5.5
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

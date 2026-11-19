@@ -34,6 +34,7 @@ class SchemeScanScreen extends StatefulWidget {
     this.tab = false,
     this.approved,
     this.ocrRegistry,
+    this.schemeId,
   });
   final String? initialImage;
   final SchemeRow? existingGross;
@@ -49,6 +50,9 @@ class SchemeScanScreen extends StatefulWidget {
 
   /// Overrides the engines offered on this platform (used by tests).
   final OcrRegistry? ocrRegistry;
+
+  /// A saved schedule to reopen (from the Records page).
+  final int? schemeId;
 
   @override
   State<SchemeScanScreen> createState() => _SchemeScanScreenState();
@@ -122,33 +126,52 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
       });
     } catch (_) {
       // The earlier scan is gone from Records; start a fresh one.
-      if (mounted) _toast('The earlier scan for this colony could not be reopened. Scan it again.');
+      if (mounted) {
+        _toast(
+          'The earlier scan for this colony could not be reopened. Scan it again.',
+        ); }
     }
   }
 
   String _transferredText() {
-    if ([_tKanal, _tMarla, _tSarsai].every((c) => c.text.trim().isEmpty)) return '';
-    String part(TextEditingController c) => c.text.trim().isEmpty ? '0' : c.text.trim();
+    if ([_tKanal, _tMarla, _tSarsai].every((c) => c.text.trim().isEmpty)) {
+      return ''; }
+    String part(TextEditingController c) =>
+        c.text.trim().isEmpty ? '0' : c.text.trim();
     return '${part(_tKanal)}K-${part(_tMarla)}M-${part(_tSarsai)}S';
   }
 
   /// Writes the scan result onto the Approved Land row (by id, else by matching name).
-  Future<void> _updateRegister(HousingScheme scheme, List<SchemeRow> selected) async {
-    final ticked = selected.where((row) => row.classification == AreaClass.transfer).toList();
+  Future<void> _updateRegister(
+    HousingScheme scheme,
+    List<SchemeRow> selected,
+  ) async {
+    final ticked = selected
+        .where((row) => row.classification == AreaClass.transfer)
+        .toList();
     final due = (HousingScheme()..rows.addAll(ticked)).totals.due;
     final int? transferArea = ticked.isEmpty ? null : due;
-    final grossRow = _rows.where((row) => row.classification == AreaClass.gross && row.area != null).firstOrNull;
+    final grossRow = _rows
+        .where(
+          (row) => row.classification == AreaClass.gross && row.area != null,
+        )
+        .firstOrNull;
     var entry = _approved;
     entry ??= await _approvedRepo.byName(scheme.name);
     if (entry == null || entry.id == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('This colony is not in the Approved Land register.'),
+            content: const Text(
+              'This colony is not in the Approved Land register.',
+            ),
             action: SnackBarAction(
               label: 'Add it',
               onPressed: () async {
-                final added = ApprovedLandEntry(name: scheme.name, totalArea: LandAreaText.format(grossRow?.area));
+                final added = ApprovedLandEntry(
+                  name: scheme.name,
+                  totalArea: LandAreaText.format(grossRow?.area),
+                );
                 await _approvedRepo.save(added);
                 await _approvedRepo.applyScan(
                   added.id!,
@@ -170,7 +193,9 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
       schemeId: scheme.id!,
       transferArea: transferArea,
       transferred: _transferredText(),
-      totalAreaIfEmpty: grossRow == null ? '' : LandAreaText.format(grossRow.area),
+      totalAreaIfEmpty: grossRow == null
+          ? ''
+          : LandAreaText.format(grossRow.area),
     );
   }
 
@@ -205,11 +230,15 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
       // Recorded transfers point at their rows, so a re-scan never replaces rows that have any.
       final keepRows = scheme.evidence.isNotEmpty;
       if (keepRows) {
-        _toast('This scheme has recorded transfers, so its worksheet rows were kept. The new scan is saved beside them.');
+        _toast(
+          'This scheme has recorded transfers, so its worksheet rows were kept. The new scan is saved beside them.',
+        );
       } else {
         scheme.rows.clear();
         for (final row in selected) {
-          scheme.rows.add(SchemeRow.fromJson(row.toJson()..['id'] = scheme.nextRowId()));
+          scheme.rows.add(
+            SchemeRow.fromJson(row.toJson()..['id'] = scheme.nextRowId()),
+          );
         }
       }
       scheme.ocrProvenance = _buildProvenance() ?? scheme.ocrProvenance;
@@ -230,7 +259,8 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
           _toast('Saved "${scheme.name}" and updated it in Approved Land.');
         }
       } catch (_) {
-        if (mounted) _toast('Saved, but could not update the Approved Land register.');
+        if (mounted) {
+          _toast('Saved, but could not update the Approved Land register.'); }
       }
     } catch (_) {
       _toast('Could not save. Check the scheme name and try again.');
@@ -251,8 +281,14 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
             '${_approved == null ? '' : ' Saving will write the figures into "${_approved!.name}" in Approved Land.'}',
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Replace')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Replace'),
+            ),
           ],
         ),
       );
@@ -264,8 +300,22 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
       ('TOTAL ROAD AREA', '71670', '13', '3', '2', AreaClass.transfer),
       ('COMMERCIAL AREA', '5662', '1', '0', '8', AreaClass.plot),
       ('PARK & GREEN BELT', '19817', '3', '12', '7', AreaClass.transfer),
-      ('PUBLIC BUILDING MOSQUE (17M-8S) DISPENSARY (3M)', '5662', '1', '0', '8', AreaClass.transfer),
-      ('SOLID WASTE MANAGEMENT & DISPOSAL', '2722', '0', '10', '0', AreaClass.transfer),
+      (
+        'PUBLIC BUILDING MOSQUE (17M-8S) DISPENSARY (3M)',
+        '5662',
+        '1',
+        '0',
+        '8',
+        AreaClass.transfer,
+      ),
+      (
+        'SOLID WASTE MANAGEMENT & DISPOSAL',
+        '2722',
+        '0',
+        '10',
+        '0',
+        AreaClass.transfer,
+      ),
     ];
     setState(() {
       _rows
@@ -284,7 +334,8 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
         ]);
       _checked.clear();
       _next = sample.length + 1;
-      _message = 'This is a sample schedule. Tap the edit icon on any row to change it to your own figures.';
+      _message =
+          'This is a sample schedule. Tap the edit icon on any row to change it to your own figures.';
       _dirty = true;
     });
   }
@@ -293,7 +344,8 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
   void _makeTotal(int index) => setState(() {
     final chosen = _rows.removeAt(index)..classification = AreaClass.gross;
     for (final row in _rows) {
-      if (row.classification == AreaClass.gross) row.classification = AreaClass.review;
+      if (row.classification == AreaClass.gross) {
+        row.classification = AreaClass.review; }
     }
     _rows.insert(0, chosen);
     _dirty = true;
@@ -306,7 +358,8 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
           ? '${Platform.environment['LOCALAPPDATA'] ?? '.'}\\PlotMetric\\ocr_originals'
           : '${(await NativePlatformHelper.androidDeviceInfo())?.documentsDir ?? Directory.systemTemp.path}/ocr_originals';
       await Directory(base).create(recursive: true);
-      final name = '${DateTime.now().millisecondsSinceEpoch}_${path.split(RegExp(r'[\\/]')).last}';
+      final name =
+          '${DateTime.now().millisecondsSinceEpoch}_${path.split(RegExp(r'[\\/]')).last}';
       final target = '$base${Platform.pathSeparator}$name';
       await File(path).copy(target);
       return target;
@@ -318,7 +371,10 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
   void _renumber(List<SchemeRow> rows) {
     _rows
       ..clear()
-      ..addAll([for (final (i, row) in rows.indexed) SchemeRow.fromJson(row.toJson()..['id'] = i + 1)]);
+      ..addAll([
+        for (final (i, row) in rows.indexed)
+          SchemeRow.fromJson(row.toJson()..['id'] = i + 1),
+      ]);
     _next = rows.length + 1;
     _checked.clear();
   }
@@ -340,7 +396,8 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
     _activeEngineId = result.baseEngineId;
     _cellSources = result.sources;
     _dirty = true;
-    _message = 'Using the combined table from the comparison. Each cell remembers which engine it came from.';
+    _message =
+        'Using the combined table from the comparison. Each cell remembers which engine it came from.';
   });
 
   void _resetOcr() => setState(() {
@@ -354,7 +411,9 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
   Map<String, dynamic>? _buildProvenance() {
     final runs = _panelKey.currentState?.runs ?? const <OcrRun>[];
     if (_cropMeta == null && runs.isEmpty) return _provenance;
-    final active = runs.where((run) => run.engineId == _activeEngineId).firstOrNull;
+    final active = runs
+        .where((run) => run.engineId == _activeEngineId)
+        .firstOrNull;
     final meta = _cropMeta;
     final Object? crop;
     if (meta == null) {
@@ -390,8 +449,15 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
         context: context,
         builder: (dialog) => AlertDialog(
           title: const Text('The schedule is not ready to mark as reviewed'),
-          content: SingleChildScrollView(child: Text(issues.map((issue) => '• $issue').join('\n'))),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('OK'))],
+          content: SingleChildScrollView(
+            child: Text(issues.map((issue) => '• $issue').join('\n')),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
       return;
@@ -419,8 +485,15 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
     _dirty = false;
   });
 
-  MeasurementEntry _entry(int order, String title, int? area, EntryOperation operation) {
-    final units = area == null ? 0 : (area.abs() + SchemeArea.unit ~/ 2) ~/ SchemeArea.unit;
+  MeasurementEntry _entry(
+    int order,
+    String title,
+    int? area,
+    EntryOperation operation,
+  ) {
+    final units = area == null
+        ? 0
+        : (area.abs() + SchemeArea.unit ~/ 2) ~/ SchemeArea.unit;
     final composite = LandMath.centiSarsaiToComposite(units);
     return MeasurementEntry(
       sortOrder: order,
@@ -434,12 +507,15 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
 
   /// PDF / Word / CSV report: selected rows, less what is already transferred.
   void _export(List<SchemeRow> selected) {
-    final rows = selected.where((row) => row.classification == AreaClass.transfer && row.ready).toList();
+    final rows = selected
+        .where((row) => row.classification == AreaClass.transfer && row.ready)
+        .toList();
     if (rows.isEmpty) {
       _toast('Tick at least one complete row to export.');
       return;
     }
-    String part(TextEditingController c) => c.text.trim().isEmpty ? '0' : c.text.trim();
+    String part(TextEditingController c) =>
+        c.text.trim().isEmpty ? '0' : c.text.trim();
     final done = SchemeArea.land(part(_tKanal), part(_tMarla), part(_tSarsai));
     if (done == null) {
       _toast('Correct the already-transferred numbers first.');
@@ -448,15 +524,27 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
     final now = DateTime.now();
     final entries = [
       for (final (i, row) in rows.indexed)
-        _entry(i, row.description.trim().isEmpty ? 'Nil' : row.description.trim(), row.area, EntryOperation.add),
-      if (done > 0) _entry(rows.length, 'Already transferred', done, EntryOperation.subtract),
+        _entry(
+          i,
+          row.description.trim().isEmpty ? 'Nil' : row.description.trim(),
+          row.area,
+          EntryOperation.add,
+        ),
+      if (done > 0)
+        _entry(
+          rows.length,
+          'Already transferred',
+          done,
+          EntryOperation.subtract,
+        ),
     ];
     CalculationExportDialog.show(
       context,
       Calculation(
         title: _name.trim().isEmpty ? 'Area schedule' : _name.trim(),
         calculationDate: now.toIso8601String().split('T').first,
-        calculationTime: '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+        calculationTime:
+            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
         createdAtUtc: now.toUtc().toIso8601String(),
         updatedAtUtc: now.toUtc().toIso8601String(),
         entries: entries,
@@ -480,6 +568,8 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
       _approved = entry;
       _name = entry.name;
       if (entry.schemeId != null) _restore(entry.schemeId!);
+    } else if (widget.schemeId case final id?) {
+      _restore(id);
     }
     for (final controller in [_tKanal, _tMarla, _tSarsai]) {
       controller.addListener(() => _dirty = true);
@@ -501,7 +591,9 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
       final source = base64Encode(crop.preview);
       // The confirmed crop is saved once; every OCR engine reads this same file.
       final folder = await Directory.systemTemp.createTemp('plotmetric_scan_');
-      final file = await File('${folder.path}${Platform.pathSeparator}crop.png').writeAsBytes(crop.scan);
+      final file = await File(
+        '${folder.path}${Platform.pathSeparator}crop.png',
+      ).writeAsBytes(crop.scan);
       final preserved = await _preserveOriginal(crop.originalPath);
       if (_cropPath != null) {
         try {
@@ -523,7 +615,9 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
             ? null
             : 'Enter the rows from the crop, or choose an OCR engine below if one is available.';
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) => _panelKey.currentState?.autoScan());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _panelKey.currentState?.autoScan(),
+      );
     } catch (_) {
       if (mounted) {
         setState(
@@ -567,16 +661,23 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
   Widget build(BuildContext context) {
     final selected = SchemeScan.selectedRows(_rows, _checked);
     final gross = widget.existingGross;
-    final selectedGross = selected.where((row) => row.classification == AreaClass.gross).length;
+    final selectedGross = selected
+        .where((row) => row.classification == AreaClass.gross)
+        .length;
     final totals = (HousingScheme()..rows.addAll([?gross, ...selected])).totals;
-    final registerTotal = _approved == null ? null : LandAreaText.parse(_approved!.totalArea);
+    final registerTotal = _approved == null
+        ? null
+        : LandAreaText.parse(_approved!.totalArea);
     // The scanned Total Area row is 100%, and every other row is its share of it.
     final scannedTotal = _rows
-        .where((row) => row.classification == AreaClass.gross && (row.area ?? 0) > 0)
+        .where(
+          (row) => row.classification == AreaClass.gross && (row.area ?? 0) > 0,
+        )
         .map((row) => row.area!)
         .firstOrNull;
     final previewGross = scannedTotal ?? gross?.area ?? registerTotal;
-    final canSend = selected.isNotEmpty && selectedGross == (gross == null ? 1 : 0);
+    final canSend =
+        selected.isNotEmpty && selectedGross == (gross == null ? 1 : 0);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan area schedule'),
@@ -679,20 +780,24 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
                 makeTotal: _busy ? null : _makeTotal,
                 transfer: _busy
                     ? null
-                    : (index, checked) => setState(
-                        () {
-                          _dirty = true;
-                          checked ? _checked.add(_rows[index].id) : _checked.remove(_rows[index].id);
-                        },
-                      ),
+                    : (index, checked) => setState(() {
+                        _dirty = true;
+                        checked
+                            ? _checked.add(_rows[index].id)
+                            : _checked.remove(_rows[index].id);
+                      }),
                 remove: _busy
                     ? null
-                    : (index) => setState(() => _checked.remove(_rows.removeAt(index).id)),
+                    : (index) => setState(
+                        () => _checked.remove(_rows.removeAt(index).id),
+                      ),
               ),
             if (_rows.isNotEmpty) ...[
               const SizedBox(height: 12),
               SelectedAreaSummary(
-                rows: selected.where((row) => row.classification == AreaClass.transfer).toList(),
+                rows: selected
+                    .where((row) => row.classification == AreaClass.transfer)
+                    .toList(),
                 due: totals.due,
                 transferredKanal: _tKanal,
                 transferredMarla: _tMarla,
@@ -707,10 +812,21 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
               if (selected.any(
                 (row) => row.classification == AreaClass.transfer && !row.ready,
               ))
-                const Text('Selected rows with unresolved values are pending.'),
-              if (widget.embedded && !canSend) Text(gross == null
-                  ? 'Check exactly one Total Area row to send the selection.'
-                  : 'The worksheet already has a total area. Select only additional transferable rows.'),
+                Text(
+                  'Not counted yet: ${[for (final row in selected)
+                    if (row.classification == AreaClass.transfer && !row.ready) '${row.description.trim().isEmpty ? 'row ${row.id}' : row.description} '
+                          '(${row.needsSftDecision
+                              ? 'scanned sq ft and K/M/S disagree: open the edit icon and choose one'
+                              : row.area == null
+                              ? 'Kanal/Marla/Sarsai missing'
+                              : 'needs review'})'].join('; ')}.',
+                ),
+              if (widget.embedded && !canSend)
+                Text(
+                  gross == null
+                      ? 'Check exactly one Total Area row to send the selection.'
+                      : 'The worksheet already has a total area. Select only additional transferable rows.',
+                ),
             ],
             if (_rows.isNotEmpty)
               Padding(
@@ -721,14 +837,28 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
                   runSpacing: 8,
                   children: [
                     FilledButton.icon(
-                      onPressed: _busy || _saving ? null : () => _save(selected),
+                      onPressed: _busy || _saving
+                          ? null
+                          : () => _save(selected),
                       icon: const Icon(Icons.save_outlined),
-                      label: Text(_saved == null ? 'Save' : (_dirty ? 'Save changes' : 'Saved')),
+                      label: Text(
+                        _saved == null
+                            ? 'Save'
+                            : (_dirty ? 'Save changes' : 'Saved'),
+                      ),
                     ),
                     OutlinedButton.icon(
                       onPressed: _busy || _reviewed ? null : _markReviewed,
-                      icon: Icon(_reviewed ? Icons.verified_outlined : Icons.fact_check_outlined),
-                      label: Text(_reviewed ? 'Schedule reviewed' : 'Mark Schedule Reviewed'),
+                      icon: Icon(
+                        _reviewed
+                            ? Icons.verified_outlined
+                            : Icons.fact_check_outlined,
+                      ),
+                      label: Text(
+                        _reviewed
+                            ? 'Schedule reviewed'
+                            : 'Mark Schedule Reviewed',
+                      ),
                     ),
                     OutlinedButton.icon(
                       onPressed: _busy ? null : () => _export(selected),
@@ -744,7 +874,10 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
                       OutlinedButton(
                         onPressed: _busy || !canSend
                             ? null
-                            : () => Navigator.pop(context, (rows: selected, crop: _crop)),
+                            : () => Navigator.pop(context, (
+                                rows: selected,
+                                crop: _crop,
+                              )),
                         child: const Text('Add to scheme worksheet'),
                       ),
                   ],
@@ -778,26 +911,34 @@ class SelectedAreaSummary extends StatelessWidget {
   });
   final List<SchemeRow> rows;
   final int due;
-  final TextEditingController transferredKanal, transferredMarla, transferredSarsai;
+  final TextEditingController transferredKanal,
+      transferredMarla,
+      transferredSarsai;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bold = theme.textTheme.titleSmall;
-    TableRow line(String a, String k, String m, String s, String sft, {TextStyle? style}) =>
-        TableRow(
-          children: [
-            for (final (i, text) in [a, k, m, s, sft].indexed)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                child: Text(
-                  text,
-                  style: style,
-                  textAlign: i == 0 ? TextAlign.start : TextAlign.end,
-                ),
-              ),
-          ],
-        );
+    TableRow line(
+      String a,
+      String k,
+      String m,
+      String s,
+      String sft, {
+      TextStyle? style,
+    }) => TableRow(
+      children: [
+        for (final (i, text) in [a, k, m, s, sft].indexed)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Text(
+              text,
+              style: style,
+              textAlign: i == 0 ? TextAlign.start : TextAlign.end,
+            ),
+          ),
+      ],
+    );
     final total = _kms(due);
     return Card(
       child: Padding(
@@ -820,17 +961,39 @@ class SelectedAreaSummary extends StatelessWidget {
                 bottom: BorderSide(color: theme.dividerColor),
               ),
               children: [
-                line('Description', 'Kanal', 'Marla', 'Sarsai', 'Sq ft', style: bold),
+                line(
+                  'Description',
+                  'Kanal',
+                  'Marla',
+                  'Sarsai',
+                  'Sq ft',
+                  style: bold,
+                ),
+                // Every ticked row is listed with what was read; a row that is not ready is shown
+                // greyed and is not counted in the total until it is resolved.
                 for (final row in rows)
                   line(
-                    row.description.isEmpty ? 'Unreadable description' : row.description,
-                    _kms(row.ready ? row.area : null).k,
-                    _kms(row.ready ? row.area : null).m,
-                    _kms(row.ready ? row.area : null).s,
-                    SchemeArea.display(row.ready ? row.area : null).replaceAll(' sq ft', ''),
+                    '${row.description.isEmpty ? 'Unreadable description' : row.description}'
+                    '${row.ready ? '' : '  (not counted yet)'}',
+                    _kms(row.area).k,
+                    _kms(row.area).m,
+                    _kms(row.area).s,
+                    SchemeArea.display(row.area).replaceAll(' sq ft', ''),
+                    style: row.ready
+                        ? null
+                        : const TextStyle(
+                            color: Colors.black45,
+                            fontStyle: FontStyle.italic,
+                          ),
                   ),
-                line('Total', total.k, total.m, total.s,
-                    SchemeArea.display(due).replaceAll(' sq ft', ''), style: bold),
+                line(
+                  'Total',
+                  total.k,
+                  total.m,
+                  total.s,
+                  SchemeArea.display(due).replaceAll(' sq ft', ''),
+                  style: bold,
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -848,8 +1011,13 @@ class SelectedAreaSummary extends StatelessWidget {
                       padding: const EdgeInsets.only(right: 8),
                       child: TextField(
                         controller: controller,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(labelText: label, isDense: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: label,
+                          isDense: true,
+                        ),
                       ),
                     ),
                   ),
@@ -857,11 +1025,19 @@ class SelectedAreaSummary extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             ListenableBuilder(
-              listenable: Listenable.merge([transferredKanal, transferredMarla, transferredSarsai]),
+              listenable: Listenable.merge([
+                transferredKanal,
+                transferredMarla,
+                transferredSarsai,
+              ]),
               builder: (context, _) {
-                String part(TextEditingController c) => c.text.trim().isEmpty ? '0' : c.text.trim();
-                final empty = [transferredKanal, transferredMarla, transferredSarsai]
-                    .every((c) => c.text.trim().isEmpty);
+                String part(TextEditingController c) =>
+                    c.text.trim().isEmpty ? '0' : c.text.trim();
+                final empty = [
+                  transferredKanal,
+                  transferredMarla,
+                  transferredSarsai,
+                ].every((c) => c.text.trim().isEmpty);
                 final done = SchemeArea.land(
                   part(transferredKanal),
                   part(transferredMarla),
@@ -884,15 +1060,44 @@ class SelectedAreaSummary extends StatelessWidget {
                     3: FlexColumnWidth(1),
                     4: FlexColumnWidth(2),
                   },
-                  border: TableBorder(horizontalInside: BorderSide(color: theme.dividerColor)),
+                  border: TableBorder(
+                    horizontalInside: BorderSide(color: theme.dividerColor),
+                  ),
                   children: [
-                    line('Report', 'Kanal', 'Marla', 'Sarsai', 'Sq ft', style: bold),
-                    line('To transfer', total.k, total.m, total.s,
-                        SchemeArea.display(due).replaceAll(' sq ft', '')),
-                    line('Transferred', d.k, d.m, d.s,
-                        SchemeArea.display(empty ? 0 : done).replaceAll(' sq ft', '')),
-                    line(remaining < 0 ? 'Excess' : 'Remaining', r.k, r.m, r.s,
-                        SchemeArea.display(remaining.abs()).replaceAll(' sq ft', ''), style: bold),
+                    line(
+                      'Report',
+                      'Kanal',
+                      'Marla',
+                      'Sarsai',
+                      'Sq ft',
+                      style: bold,
+                    ),
+                    line(
+                      'To transfer',
+                      total.k,
+                      total.m,
+                      total.s,
+                      SchemeArea.display(due).replaceAll(' sq ft', ''),
+                    ),
+                    line(
+                      'Transferred',
+                      d.k,
+                      d.m,
+                      d.s,
+                      SchemeArea.display(
+                        empty ? 0 : done,
+                      ).replaceAll(' sq ft', ''),
+                    ),
+                    line(
+                      remaining < 0 ? 'Excess' : 'Remaining',
+                      r.k,
+                      r.m,
+                      r.s,
+                      SchemeArea.display(
+                        remaining.abs(),
+                      ).replaceAll(' sq ft', ''),
+                      style: bold,
+                    ),
                   ],
                 );
               },
@@ -981,13 +1186,20 @@ class ScheduleTable extends StatelessWidget {
               DataCell(Text('${index + 1}')),
               DataCell(
                 Checkbox(
-                  value: checkedRows?.contains(row.id) ?? (row.classification == AreaClass.transfer),
+                  value:
+                      checkedRows?.contains(row.id) ??
+                      (row.classification == AreaClass.transfer),
                   semanticLabel: checkedRows == null
                       ? 'Transferable: ${row.description}'
                       : 'Send to Land: ${row.description}',
                   onChanged:
-                      transfer == null || row.classification == AreaClass.subtotal ||
-                          (checkedRows == null && [AreaClass.gross, AreaClass.plot].contains(row.classification))
+                      transfer == null ||
+                          row.classification == AreaClass.subtotal ||
+                          (checkedRows == null &&
+                              [
+                                AreaClass.gross,
+                                AreaClass.plot,
+                              ].contains(row.classification))
                       ? null
                       : (checked) => transfer!(index, checked == true),
                 ),
@@ -1011,16 +1223,15 @@ class ScheduleTable extends StatelessWidget {
                 row.kanal,
                 row.marla,
                 row.sarsai,
-                SchemeArea.display(
-                  row.area ?? row.printedSft,
-                ),
+                SchemeArea.display(row.area ?? row.printedSft),
                 row.percent.trim().isNotEmpty
                     ? '${row.percent.trim()}%'
-                    : SchemeArea.percentDisplay(
-                        row.area,
-                        grossArea,
-                      ),
-                row.ready ? row.classification.label : 'Needs review',
+                    : SchemeArea.percentDisplay(row.area, grossArea),
+                row.needsSftDecision
+                    ? 'Check sq ft'
+                    : row.ready
+                    ? row.classification.label
+                    : 'Needs review',
               ])
                 DataCell(Text(value)),
               if (rows.any((row) => row.mortgageSft.isNotEmpty))
@@ -1043,7 +1254,8 @@ class ScheduleTable extends StatelessWidget {
                         _ => remove?.call(index),
                       },
                       itemBuilder: (context) => [
-                        if (makeTotal != null && row.classification != AreaClass.gross)
+                        if (makeTotal != null &&
+                            row.classification != AreaClass.gross)
                           const PopupMenuItem(
                             value: 'total',
                             child: Text('Use as Total Area (row 1)'),

@@ -10,8 +10,8 @@ import 'package:plotmetric/features/schemes/presentation/scheme_scan_screen.dart
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 Future<void> settle(WidgetTester tester) async {
-  for (var i = 0; i < 10; i++) {
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 40)));
+  for (var i = 0; i < 25; i++) {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
     await tester.pump(const Duration(milliseconds: 100));
   }
 }

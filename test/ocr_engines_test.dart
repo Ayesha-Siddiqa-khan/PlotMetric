@@ -395,12 +395,10 @@ void main() {
       for (final label in ['Select OCR Engine', 'Scan with Selected Engine', 'Run All Available Offline Engines', 'Compare Results', 'Reset Results']) {
         expect(find.text(label), findsWidgets, reason: label);
       }
-      // Open the list: unavailable engines say why.
-      await tester.tap(find.text('Select OCR Engine'));
-      await tester.pumpAndSettle();
+      // Every engine is listed on screen: unavailable engines say why.
       expect(find.textContaining('Setup required'), findsWidgets);
       expect(find.textContaining('(online)'), findsWidgets);
-      await tester.tap(find.text('Good Engine').last);
+      await tester.tap(find.text('Good Engine'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Scan with Selected Engine'));
       await tester.pumpAndSettle();

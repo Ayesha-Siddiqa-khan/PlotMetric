@@ -53,7 +53,7 @@ void main() {
   });
 
   testWidgets(
-    'row editor lets you edit square feet and percentage, kept in step with K/M/S',
+    'row editor: square feet only convert into Kanal/Marla/Sarsai, and a typed % overrides the calculated one',
     (tester) async {
       tester.view.physicalSize = const Size(1600, 1200);
       tester.view.devicePixelRatio = 1;
@@ -66,32 +66,25 @@ void main() {
       TextField field(String label) =>
           tester.widget<TextField>(find.widgetWithText(TextField, label).last);
 
-      // Square feet fills Kanal / Marla / Sarsai.
+      // Typing square feet fills Kanal / Marla / Sarsai (the square feet are not stored).
       await tester.enterText(
-        find.widgetWithText(TextField, 'Scanned square feet'),
+        find.widgetWithText(
+          TextField,
+          'Square feet (optional: fills Kanal/Marla/Sarsai)',
+        ),
         '71670',
       );
       await tester.pump();
       expect(field('Kanal').controller!.text, '13');
       expect(field('Marla').controller!.text, '3');
-      // Changing Kanal leaves the scanned square feet alone.
+      // Nothing asks for a decision: the app calculates the square feet from Kanal/Marla/Sarsai.
       await tester.enterText(find.widgetWithText(TextField, 'Kanal'), '14');
       await tester.pump();
       expect(
-        field('Scanned square feet').controller!.text,
-        '71670',
-      ); // the scanned figure is never overwritten
-      // The two figures now disagree, so the editor asks which one to trust before the row can be confirmed.
-      expect(
         find.text('The scanned figures disagree. Choose which one to trust.'),
-        findsOneWidget,
+        findsNothing,
       );
-      await tester.ensureVisible(
-        find.text('Use the square feet (recalculates K/M/S)'),
-      );
-      await tester.tap(find.text('Use the square feet (recalculates K/M/S)'));
-      await tester.pumpAndSettle();
-      expect(field('Kanal').controller!.text, '13');
+      await tester.enterText(find.widgetWithText(TextField, 'Kanal'), '13');
       await tester.enterText(
         find.widgetWithText(TextField, '% (empty = calculated)'),
         '25.3',

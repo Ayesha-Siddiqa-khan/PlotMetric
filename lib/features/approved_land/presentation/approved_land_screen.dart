@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../export/presentation/table_export_dialog.dart';
 import '../../schemes/presentation/scheme_scan_screen.dart';
 import '../logic/approved_land.dart';
+import '../logic/approved_land_export.dart';
 import '../logic/approved_land_repository.dart';
 
 /// Register of approved land sub-divisions (colonies) with their transfer position.
@@ -16,13 +18,15 @@ class ApprovedLandScreen extends StatefulWidget {
 }
 
 class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
-  late final ApprovedLandRepository _repo = widget.repository ?? ApprovedLandRepository();
+  late final ApprovedLandRepository _repo =
+      widget.repository ?? ApprovedLandRepository();
   List<ApprovedLandEntry> _entries = [];
   String _search = '';
   bool _loading = true;
   String? _error;
   final _horizontal = ScrollController();
   final _vertical = ScrollController();
+  final _selected = <int>{};
   bool _barsReady = false;
 
   @override
@@ -65,6 +69,28 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
     super.dispose();
   }
 
+  /// The chosen rows, or every row currently shown (after the search) when none is chosen.
+  List<ApprovedLandEntry> get _exportRows {
+    final shown = _entries.where(_matches).toList();
+    return _selected.isEmpty ? shown : shown.where((entry) => _selected.contains(entry.id)).toList();
+  }
+
+  Future<void> _export() async {
+    final rows = _exportRows;
+    if (rows.isEmpty) {
+      _toast('There are no colonies to export.');
+      return;
+    }
+    await TableExportDialog.show(
+      context,
+      title: ApprovedLandExport.title,
+      subtitle: ApprovedLandExport.subtitle,
+      columns: ApprovedLandExport.columns,
+      groups: [ApprovedLandExport.group(rows)],
+      fileStem: 'Approved_Land',
+    );
+  }
+
   void _toast(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
@@ -79,7 +105,8 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
   Future<void> _edit(ApprovedLandEntry? original) async {
     final result = await showDialog<ApprovedLandEntry>(
       context: context,
-      builder: (_) => _EntryDialog(original: original?.copy() ?? ApprovedLandEntry()),
+      builder: (_) =>
+          _EntryDialog(original: original?.copy() ?? ApprovedLandEntry()),
     );
     if (result == null || !mounted) return;
     try {
@@ -95,10 +122,18 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
       context: context,
       builder: (dialog) => AlertDialog(
         title: const Text('Delete this entry?'),
-        content: Text('${entry.name}\n\nThis removes it from the Approved Land register. A scan saved for it stays in Records.'),
+        content: Text(
+          '${entry.name}\n\nThis removes it from the Approved Land register. A scan saved for it stays in Records.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -122,41 +157,60 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
   Widget _area(String text) {
     if (text.trim().isEmpty) return const Center(child: Text('—'));
     final shownText = LandAreaText.normalize(text);
-    final valid = LandAreaText.parse(text) != null || text.trim().startsWith('-') && LandAreaText.parse(text.trim().substring(1)) != null;
+    final valid =
+        LandAreaText.parse(text) != null ||
+        text.trim().startsWith('-') &&
+            LandAreaText.parse(text.trim().substring(1)) != null;
     return Tooltip(
-      message: valid ? '' : 'Not a valid area (Marla must be below 20, Sarsai below 9). Tap to correct it.',
+      message: valid
+          ? ''
+          : 'Not a valid area (Marla must be below 20, Sarsai below 9). Tap to correct it.',
       child: Center(
         child: Text(
           shownText,
           textAlign: TextAlign.center,
-          style: valid ? null : const TextStyle(color: AppTheme.dangerRed, fontWeight: FontWeight.w600),
+          style: valid
+              ? null
+              : const TextStyle(
+                  color: AppTheme.dangerRed,
+                  fontWeight: FontWeight.w600,
+                ),
         ),
       ),
     );
   }
 
-  DataCell _cell(ApprovedLandEntry entry, Widget child, {double? width}) => DataCell(
-    width == null ? child : SizedBox(width: width, child: child),
-    onTap: () => _edit(entry),
-  );
+  DataCell _cell(ApprovedLandEntry entry, Widget child, {double? width}) =>
+      DataCell(
+        width == null ? child : SizedBox(width: width, child: child),
+        onTap: () => _edit(entry),
+      );
 
   // Column widths are kept narrow so the register stays readable on a phone, where it scrolls sideways.
-  static const _wSerial = 40.0, _wName = 150.0, _wOwner = 170.0, _wMouza = 140.0;
+  static const _wSerial = 40.0,
+      _wName = 150.0,
+      _wOwner = 170.0,
+      _wMouza = 140.0;
   static const _wArea = 104.0, _wActions = 112.0;
 
-  DataColumn _head(String text, double width, {bool center = false}) => DataColumn(
-    label: SizedBox(
-      width: width,
-      child: Text(text, textAlign: center ? TextAlign.center : TextAlign.start),
-    ),
-  );
+  DataColumn _head(String text, double width, {bool center = false}) =>
+      DataColumn(
+        label: SizedBox(
+          width: width,
+          child: Text(
+            text,
+            textAlign: center ? TextAlign.center : TextAlign.start,
+          ),
+        ),
+      );
 
   /// Horizontal scroll bar pinned to the bottom of the screen, vertical scroll inside it.
   Widget _table(List<ApprovedLandEntry> shown) {
     if (!_barsReady) {
       // Forcing a scroll bar visible before its scroll view exists throws, so wait for the first frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _horizontal.hasClients && _vertical.hasClients) setState(() => _barsReady = true);
+        if (mounted && _horizontal.hasClients && _vertical.hasClients) {
+          setState(() => _barsReady = true); }
       });
     }
     return ScrollConfiguration(
@@ -180,6 +234,14 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
           controller: _vertical,
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           child: DataTable(
+            showCheckboxColumn: true,
+            onSelectAll: (all) => setState(() {
+              if (all == true) {
+                _selected.addAll([for (final entry in shown) ?entry.id]);
+              } else {
+                _selected.removeAll([for (final entry in shown) ?entry.id]);
+              }
+            }),
             columnSpacing: 10,
             horizontalMargin: 6,
             dataRowMinHeight: 44,
@@ -192,7 +254,11 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
               _head('Name of Owners /\nDevelopers', _wOwner),
               _head('Name of Mouza (s)\nAddress / Road', _wMouza),
               _head('Total Area\n(K-M-S)', _wArea, center: true),
-              _head('Total Transferable\nArea to MC (K-M-S)', _wArea, center: true),
+              _head(
+                'Total Transferable\nArea to MC (K-M-S)',
+                _wArea,
+                center: true,
+              ),
               _head('Transferred\nto MC (K-M-S)', _wArea, center: true),
               _head('Remaining\nTransfer (K-M-S)', _wArea, center: true),
               _head('Mortgage\nDeed (K-M-S)', _wArea, center: true),
@@ -202,8 +268,16 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
               for (final entry in shown)
                 DataRow(
                   key: ValueKey(entry.id),
+                  selected: _selected.contains(entry.id),
+                  onSelectChanged: entry.id == null
+                      ? null
+                      : (on) => setState(() => on == true ? _selected.add(entry.id!) : _selected.remove(entry.id!)),
                   cells: [
-                    _cell(entry, Text(entry.serial?.toString() ?? ''), width: _wSerial),
+                    _cell(
+                      entry,
+                      Text(entry.serial?.toString() ?? ''),
+                      width: _wSerial,
+                    ),
                     DataCell(
                       SizedBox(
                         width: _wName,
@@ -213,8 +287,13 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
                               const Padding(
                                 padding: EdgeInsets.only(right: 4),
                                 child: Tooltip(
-                                  message: 'A scanned schedule is saved for this colony. Tap the name to view it.',
-                                  child: Icon(Icons.task_alt, size: 16, color: AppTheme.accentTeal),
+                                  message:
+                                      'A scanned schedule is saved for this colony. Tap the name to view it.',
+                                  child: Icon(
+                                    Icons.task_alt,
+                                    size: 16,
+                                    color: AppTheme.accentTeal,
+                                  ),
                                 ),
                               ),
                             Expanded(
@@ -234,8 +313,24 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
                       ),
                       onTap: () => _openScan(entry),
                     ),
-                    _cell(entry, Text(entry.owner, maxLines: 3, overflow: TextOverflow.ellipsis), width: _wOwner),
-                    _cell(entry, Text(entry.mouza, maxLines: 3, overflow: TextOverflow.ellipsis), width: _wMouza),
+                    _cell(
+                      entry,
+                      Text(
+                        entry.owner,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      width: _wOwner,
+                    ),
+                    _cell(
+                      entry,
+                      Text(
+                        entry.mouza,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      width: _wMouza,
+                    ),
                     _cell(entry, _area(entry.totalArea), width: _wArea),
                     _cell(entry, _area(entry.transferTotal), width: _wArea),
                     _cell(entry, _area(entry.transferred), width: _wArea),
@@ -247,11 +342,24 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            for (final (tip, icon, action) in <(String, IconData, VoidCallback)>[
-                              ('Edit', Icons.edit_outlined, () => _edit(entry)),
-                              ('Scan area schedule', Icons.document_scanner_outlined, () => _openScan(entry)),
-                              ('Delete', Icons.delete_outline, () => _delete(entry)),
-                            ])
+                            for (final (tip, icon, action)
+                                in <(String, IconData, VoidCallback)>[
+                                  (
+                                    'Edit',
+                                    Icons.edit_outlined,
+                                    () => _edit(entry),
+                                  ),
+                                  (
+                                    'Scan area schedule',
+                                    Icons.document_scanner_outlined,
+                                    () => _openScan(entry),
+                                  ),
+                                  (
+                                    'Delete',
+                                    Icons.delete_outline,
+                                    () => _delete(entry),
+                                  ),
+                                ])
                               IconButton(
                                 tooltip: tip,
                                 onPressed: action,
@@ -259,7 +367,8 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
                                 style: IconButton.styleFrom(
                                   minimumSize: const Size(34, 34),
                                   padding: const EdgeInsets.all(6),
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 icon: Icon(icon),
                               ),
@@ -296,23 +405,36 @@ class _ApprovedLandScreenState extends State<ApprovedLandScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Search by colony, owner, mouza or area',
-                        prefixIcon: Icon(Icons.search),
-                        isDense: true,
-                      ),
-                      onChanged: (value) => setState(() => _search = value.trim().toLowerCase()),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Search by colony, owner, mouza or area',
+                      prefixIcon: Icon(Icons.search),
+                      isDense: true,
                     ),
+                    onChanged: (value) =>
+                        setState(() => _search = value.trim().toLowerCase()),
                   ),
-                  const SizedBox(width: 10),
-                  FilledButton.icon(
-                    onPressed: () => _edit(null),
-                    icon: const Icon(Icons.add),
-                    label: const Text('New colony'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => _edit(null),
+                        icon: const Icon(Icons.add),
+                        label: const Text('New colony'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _export,
+                        icon: const Icon(Icons.ios_share),
+                        label: Text(_selected.isEmpty ? 'Export' : 'Export (${_selected.length})'),
+                      ),
+                      if (_selected.isNotEmpty)
+                        TextButton(onPressed: () => setState(_selected.clear), child: const Text('Clear')),
+                    ],
                   ),
                 ],
               ),
@@ -352,7 +474,9 @@ class _EntryDialog extends StatefulWidget {
 
 class _EntryDialogState extends State<_EntryDialog> {
   late final ApprovedLandEntry _start = widget.original.copy();
-  late final _serial = TextEditingController(text: _start.serial?.toString() ?? '');
+  late final _serial = TextEditingController(
+    text: _start.serial?.toString() ?? '',
+  );
   late final _name = TextEditingController(text: _start.name);
   late final _owner = TextEditingController(text: _start.owner);
   late final _mouza = TextEditingController(text: _start.mouza);
@@ -366,13 +490,30 @@ class _EntryDialogState extends State<_EntryDialog> {
 
   @override
   void dispose() {
-    for (final c in [_serial, _name, _owner, _mouza, _total, _transferTotal, _transferred, _remaining, _mortgage, _note]) {
+    for (final c in [
+      _serial,
+      _name,
+      _owner,
+      _mouza,
+      _total,
+      _transferTotal,
+      _transferred,
+      _remaining,
+      _mortgage,
+      _note,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
 
-  Widget _field(String label, TextEditingController controller, {String? hint, int lines = 1, TextInputType? type}) => Padding(
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+    int lines = 1,
+    TextInputType? type,
+  }) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: TextField(
       controller: controller,
@@ -404,10 +545,17 @@ class _EntryDialogState extends State<_EntryDialog> {
       ..remaining = LandAreaText.normalize(_remaining.text)
       ..mortgage = LandAreaText.normalize(_mortgage.text)
       ..note = _note.text.trim();
-    final changed = widget.original.transferTotal != entry.transferTotal || widget.original.transferred != entry.transferred;
-    final computed = ApprovedLandEntry.computeRemaining(entry.transferTotal, entry.transferred);
+    final changed =
+        widget.original.transferTotal != entry.transferTotal ||
+        widget.original.transferred != entry.transferred;
+    final computed = ApprovedLandEntry.computeRemaining(
+      entry.transferTotal,
+      entry.transferred,
+    );
     // Remaining follows the other two unless the user typed it themselves.
-    if (computed.isNotEmpty && (entry.remaining.isEmpty || (changed && entry.remaining == widget.original.remaining))) {
+    if (computed.isNotEmpty &&
+        (entry.remaining.isEmpty ||
+            (changed && entry.remaining == widget.original.remaining))) {
       entry.remaining = computed;
     }
     Navigator.pop(context, entry);
@@ -428,9 +576,21 @@ class _EntryDialogState extends State<_EntryDialog> {
             _field('Name of Owners / Developers', _owner, lines: 2),
             _field('Name of Mouza (s) / Address / Road', _mouza),
             _field('Total Area', _total, hint: 'e.g. 91K-16M-0S'),
-            _field('Total Transferable Area to MC', _transferTotal, hint: 'K-M-S (filled when you scan the schedule)'),
-            _field('Transferred to MC (Transfer Deed)', _transferred, hint: 'K-M-S'),
-            _field('Remaining Transfer', _remaining, hint: 'Calculated from the two above, or type it'),
+            _field(
+              'Total Transferable Area to MC',
+              _transferTotal,
+              hint: 'K-M-S (filled when you scan the schedule)',
+            ),
+            _field(
+              'Transferred to MC (Transfer Deed)',
+              _transferred,
+              hint: 'K-M-S',
+            ),
+            _field(
+              'Remaining Transfer',
+              _remaining,
+              hint: 'Calculated from the two above, or type it',
+            ),
             _field('Mortgage Deed', _mortgage, hint: 'K-M-S'),
             _field('Note', _note, lines: 2),
             const Text(
@@ -441,14 +601,20 @@ class _EntryDialogState extends State<_EntryDialog> {
             if (_problem != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(_problem!, style: const TextStyle(color: AppTheme.dangerRed)),
+                child: Text(
+                  _problem!,
+                  style: const TextStyle(color: AppTheme.dangerRed),
+                ),
               ),
           ],
         ),
       ),
     ),
     actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
       FilledButton(onPressed: _apply, child: const Text('Apply')),
     ],
   );

@@ -56,7 +56,9 @@ HousingScheme fixture() {
 }
 
 void main() {
-  testWidgets('scheme title suggests supplied names and allows manual titles', (tester) async {
+  testWidgets('scheme title suggests supplied names and allows manual titles', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: SchemeScreen()));
     final name = find.widgetWithText(TextField, 'Scheme name');
     await tester.enterText(name, 'IT');
@@ -70,35 +72,61 @@ void main() {
     expect(find.text('Al-Khair Block'), findsOneWidget);
     await tester.enterText(name, 'New manually typed scheme');
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(name).controller!.text, 'New manually typed scheme');
+    expect(
+      tester.widget<TextField>(name).controller!.text,
+      'New manually typed scheme',
+    );
   });
 
-  test('registry CSV round trips quoted titles and fills reports only for saved schemes', () {
-    final parsed = SchemeRegisterCsv.readNames(
-      '\uFEFFSerial,Name of Housing Scheme,Owner\r\n1,"City, Phase One",Owner\r\n2,ITTEFAQ CITY,Owner\r\n3,Ittefaq City,Other\r\n',
-    );
-    expect(parsed, ['City, Phase One', 'ITTEFAQ CITY']);
-    final saved = fixture()..name = 'City, Phase One'..owner = '=1+1';
-    final exported = SchemeRegisterCsv.export(parsed, [saved]);
-    expect(exported, contains('Name of Housing Scheme'));
-    expect(exported, contains('"City, Phase One"'));
-    expect(exported, contains("'=1+1"));
-    expect(exported, contains('283140.00,99885.50'));
-    expect(SchemeRegisterCsv.readNames(exported), parsed);
-    expect(() => SchemeRegisterCsv.readNames('Owner,Location\nOne,Two'), throwsFormatException);
-  });
+  test(
+    'registry CSV round trips quoted titles and fills reports only for saved schemes',
+    () {
+      final parsed = SchemeRegisterCsv.readNames(
+        '\uFEFFSerial,Name of Housing Scheme,Owner\r\n1,"City, Phase One",Owner\r\n2,ITTEFAQ CITY,Owner\r\n3,Ittefaq City,Other\r\n',
+      );
+      expect(parsed, ['City, Phase One', 'ITTEFAQ CITY']);
+      final saved = fixture()
+        ..name = 'City, Phase One'
+        ..owner = '=1+1';
+      final exported = SchemeRegisterCsv.export(parsed, [saved]);
+      expect(exported, contains('Name of Housing Scheme'));
+      expect(exported, contains('"City, Phase One"'));
+      expect(exported, contains("'=1+1"));
+      expect(exported, contains('283140.00,99885.50'));
+      expect(SchemeRegisterCsv.readNames(exported), parsed);
+      expect(
+        () => SchemeRegisterCsv.readNames('Owner,Location\nOne,Two'),
+        throwsFormatException,
+      );
+    },
+  );
 
   test('only checked rows are imported and a selected total stays gross', () {
     final original = fixture();
-    final selected = SchemeScan.selectedRows(original.rows, {original.rows[0].id, original.rows[2].id});
-    expect(selected.map((row) => row.description), ['Total Area of Scheme', 'Roads']);
-    expect(selected.map((row) => row.classification), [AreaClass.gross, AreaClass.transfer]);
-    final worksheet = HousingScheme()..name = 'Selected'..selectedOnly = true..rows.addAll(selected);
+    final selected = SchemeScan.selectedRows(original.rows, {
+      original.rows[0].id,
+      original.rows[2].id,
+    });
+    expect(selected.map((row) => row.description), [
+      'Total Area of Scheme',
+      'Roads',
+    ]);
+    expect(selected.map((row) => row.classification), [
+      AreaClass.gross,
+      AreaClass.transfer,
+    ]);
+    final worksheet = HousingScheme()
+      ..name = 'Selected'
+      ..selectedOnly = true
+      ..rows.addAll(selected);
     expect(worksheet.totals.due, 716622500);
     expect(worksheet.totals.grossLessTransferable, 2114777500);
     expect(worksheet.totals.mapDifference, isNull);
     expect(worksheet.scheduleIssues, isEmpty);
-    expect(SchemeCatalog.suggest(SchemeCatalog.areaTitles, 'solid'), contains('Solid Waste Management & Disposal'));
+    expect(
+      SchemeCatalog.suggest(SchemeCatalog.areaTitles, 'solid'),
+      contains('Solid Waste Management & Disposal'),
+    );
   });
   test(
     'table positions isolate Kanal from printed square feet and tolerate blank printed totals',
@@ -137,7 +165,7 @@ void main() {
       expect(rows[1].area, 716622500);
       // The blank Kanal cell is never filled in; the printed 19817 sq ft only suggests a value.
       expect(rows[2].kanal, isEmpty);
-      expect(rows[2].suggestion, '3K-12M-7S');
+      expect(rows[2].suggestion, isEmpty);
       expect(rows[2].needsReview, isTrue);
       expect(rows[2].area, isNull);
       expect(
@@ -396,7 +424,7 @@ void main() {
         'PUBLIC BUILDING MOSQUE DISPENSARY',
         'SOLID WASTE AND DISPOSAL',
       ]);
-      expect(rows.map((row) => row.sft), ['19817', '5662', '2722']);
+      expect(rows.map((row) => row.sft), ['', '', '']); // square feet are calculated, not read
     },
   );
 
@@ -470,7 +498,15 @@ void main() {
       await repo.save(scheme);
       await repo.addNames(['Alpha Scheme', ' alpha scheme ', 'Beta Scheme']);
       final registerNames = await repo.names();
-      expect(registerNames, unorderedEquals([...SchemeCatalog.colonies, scheme.name, 'Alpha Scheme', 'Beta Scheme']));
+      expect(
+        registerNames,
+        unorderedEquals([
+          ...SchemeCatalog.colonies,
+          scheme.name,
+          'Alpha Scheme',
+          'Beta Scheme',
+        ]),
+      );
       expect((await repo.list('example developer')).single.id, scheme.id);
       expect((await repo.load(scheme.id!)).scheduleCrop, scheme.scheduleCrop);
       final backup = BackupService();
@@ -495,158 +531,262 @@ void main() {
     },
   );
 
-  test('missing M/S headers are inferred and ticked rows count toward the total', () {
-    TableWord word(String text, double x, double y) =>
-        (text: text, x: x, y: y, height: 45);
-    final rows = SchemeScan.read([
-      word('DESCRIPTION', 500, 10),
-      word('SFT', 1100, 10),
-      word('K', 1290, 10),
-      word('TOTAL AREA', 500, 100),
-      word('283140', 1100, 100),
-      word('52', 1290, 100),
-      word('O', 1440, 100),
-      word('O', 1555, 100),
-      word('100', 1730, 100),
-      word('TOTAL ROAD AREA', 500, 200),
-      word('71670', 1100, 200),
-      word('13', 1270, 200),
-      word('3', 1440, 200),
-      word('2', 1555, 200),
-      word('25.3', 1730, 200),
-    ]);
-    expect(rows.length, 2);
-    expect([rows[0].kanal, rows[0].marla, rows[0].sarsai], ['52', '0', '0']);
-    expect([rows[1].kanal, rows[1].marla, rows[1].sarsai], ['13', '3', '2']);
-    final selected = SchemeScan.selectedRows(rows, {rows[1].id});
-    final scheme = HousingScheme()..rows.addAll(selected);
-    expect(scheme.totals.due, selected.single.area);
-    expect(scheme.totals.due, greaterThan(0));
-  });
+  test(
+    'missing M/S headers are inferred and ticked rows count toward the total',
+    () {
+      TableWord word(String text, double x, double y) =>
+          (text: text, x: x, y: y, height: 45);
+      final rows = SchemeScan.read([
+        word('DESCRIPTION', 500, 10),
+        word('SFT', 1100, 10),
+        word('K', 1290, 10),
+        word('TOTAL AREA', 500, 100),
+        word('283140', 1100, 100),
+        word('52', 1290, 100),
+        word('O', 1440, 100),
+        word('O', 1555, 100),
+        word('100', 1730, 100),
+        word('TOTAL ROAD AREA', 500, 200),
+        word('71670', 1100, 200),
+        word('13', 1270, 200),
+        word('3', 1440, 200),
+        word('2', 1555, 200),
+        word('25.3', 1730, 200),
+      ]);
+      expect(rows.length, 2);
+      expect([rows[0].kanal, rows[0].marla, rows[0].sarsai], ['52', '0', '0']);
+      expect([rows[1].kanal, rows[1].marla, rows[1].sarsai], ['13', '3', '2']);
+      final selected = SchemeScan.selectedRows(rows, {rows[1].id});
+      final scheme = HousingScheme()..rows.addAll(selected);
+      expect(scheme.totals.due, selected.single.area);
+      expect(scheme.totals.due, greaterThan(0));
+    },
+  );
 
-  test('tilted photo: split header, missing SFT header and a damaged serial still give one row per line', () {
-    TableWord word(String text, double x, double y) =>
-        (text: text, x: x, y: y, height: 16);
-    final rows = SchemeScan.read([
-      word('TOTAL AREA OF SCHEME', 300, 30), word('499851', 478, 30),
-      word('91', 620, 23), word('16', 684, 24),
-      // The header cells fall on two lines and SFT and % are unreadable.
-      word('K', 630, 80), word('M', 685, 82), word('S.NO', 141, 86), word('DES', 297, 91),
-      word('1.', 164, 136), word('TOTAL AREA OF PLOT', 330, 140), word('329172.', 511, 139),
-      word('60', 633, 137), word('09', 691, 137), word('5.87', 753, 139),
-      word('2.', 164, 195), word('MASJID COMMERICAL', 280, 196), word('4998', 529, 195),
-      word('o', 639, 190), word('18.5', 701, 190), word('1', 743, 190),
-      // Row 3 lost its serial number and is damaged by a hole.
-      word('TOTAL.AGEOF--ROAD', 301, 238), word('1403', 493, 238),
-      word('26', 638, 238), word('{5.5', 699, 239), word('28.07', 752, 240),
-      word('4', 160, 285), word('PARK AND GAREEN BELT', 300, 286), word('25371', 520, 288),
-      word('5.06', 763, 287), word('4', 644, 296), word('13', 692, 296),
-    ]);
-    // The total printed above the table is row 1; the other rows follow.
-    expect(rows.map((row) => row.description), [
-      'TOTAL AREA OF SCHEME',
-      'TOTAL AREA OF PLOT',
-      'MASJID COMMERCIAL',
-      'TOTAL AREA OF ROAD',
-      'PARK AND GREEN BELT',
-    ]);
-    expect(rows.map((row) => [row.kanal, row.marla, row.sarsai].join('-')), [
-      '91-16-',
-      '60-09-',
-      '0-18.5-',
-      '26-15.5-',
-      '4-13-',
-    ]);
-    expect(rows.map((row) => row.sft), ['499851', '329172', '4998', '1403', '25371']);
-    // The percentage is calculated from the areas, so none is read from the photo.
-    expect(rows.map((row) => row.percent), ['', '', '', '', '']);
-    expect(rows[3].needsReview, isTrue); // "{5.5" was a guess
-    expect(rows[4].needsReview, isFalse);
-  });
+  test(
+    'tilted photo: split header, missing SFT header and a damaged serial still give one row per line',
+    () {
+      TableWord word(String text, double x, double y) =>
+          (text: text, x: x, y: y, height: 16);
+      final rows = SchemeScan.read([
+        word('TOTAL AREA OF SCHEME', 300, 30), word('499851', 478, 30),
+        word('91', 620, 23), word('16', 684, 24),
+        // The header cells fall on two lines and SFT and % are unreadable.
+        word('K', 630, 80),
+        word('M', 685, 82),
+        word('S.NO', 141, 86),
+        word('DES', 297, 91),
+        word('1.', 164, 136),
+        word('TOTAL AREA OF PLOT', 330, 140),
+        word('329172.', 511, 139),
+        word('60', 633, 137), word('09', 691, 137), word('5.87', 753, 139),
+        word('2.', 164, 195),
+        word('MASJID COMMERICAL', 280, 196),
+        word('4998', 529, 195),
+        word('o', 639, 190), word('18.5', 701, 190), word('1', 743, 190),
+        // Row 3 lost its serial number and is damaged by a hole.
+        word('TOTAL.AGEOF--ROAD', 301, 238), word('1403', 493, 238),
+        word('26', 638, 238), word('{5.5', 699, 239), word('28.07', 752, 240),
+        word('4', 160, 285),
+        word('PARK AND GAREEN BELT', 300, 286),
+        word('25371', 520, 288),
+        word('5.06', 763, 287), word('4', 644, 296), word('13', 692, 296),
+      ]);
+      // The total printed above the table is row 1; the other rows follow.
+      expect(rows.map((row) => row.description), [
+        'TOTAL AREA OF SCHEME',
+        'TOTAL AREA OF PLOT',
+        'MASJID COMMERCIAL',
+        'TOTAL AREA OF ROAD',
+        'PARK AND GREEN BELT',
+      ]);
+      expect(rows.map((row) => [row.kanal, row.marla, row.sarsai].join('-')), [
+        '91-16-',
+        '60-09-',
+        '0-18.5-',
+        '26-15.5-',
+        '4-13-',
+      ]);
+      expect(rows.map((row) => row.sft), ['', '', '', '', '']);
+      // The percentage is calculated from the areas, so none is read from the photo.
+      expect(rows.map((row) => row.percent), ['', '', '', '', '']);
+      expect(rows[3].needsReview, isTrue); // "{5.5" was a guess
+      expect(rows[4].needsReview, isFalse);
+    },
+  );
 
-  test('printed square feet repair dropped Kanal/Marla/Sarsai cells and flag doubtful rows', () {
-    TableWord word(String text, double x, double y) =>
-        (text: text, x: x, y: y, height: 12);
-    final rows = SchemeScan.read([
-      word('S.NO', 20, 10), word('DESCRIPTION', 100, 10), word('SFT', 240, 10),
-      word('K', 275, 10), word('M', 310, 10), word('S', 345, 10), word('%', 380, 10),
-      word('1', 20, 40), word('TOTAL AREA', 100, 40), word('283140', 240, 40),
-      word('52', 275, 40), word('0', 310, 40), word('0', 345, 40), word('100', 380, 40),
-      // Marla (12) was not read, and the 6 of 62.74 was lost.
-      word('2', 20, 75), word('RESIDENTIAL AREA', 100, 75), word('177607', 240, 75),
-      word('32', 275, 75), word('2', 345, 75), word('2.74', 380, 75),
-      // Nothing but the square feet was read.
-      word('3', 20, 110), word('PARK', 100, 110), word('19817', 240, 110), word('7', 380, 110),
-      // K/M/S disagree with the printed square feet by far more than rounding.
-      word('4', 20, 145), word('COMMERCIAL AREA', 100, 145), word('5662', 240, 145),
-      word('9', 275, 145), word('0', 310, 145), word('8', 345, 145), word('2', 380, 145),
-    ]);
-    // Unread cells stay empty: the square feet only suggest what they might hold.
-    expect((rows[1].kanal, rows[1].marla, rows[1].sarsai), ('32', '', '2'));
-    expect(rows[1].suggestion, '32K-12M-3S'); // from the printed 177607 sq ft
-    expect(rows[1].needsReview, isTrue);
-    expect((rows[2].kanal, rows[2].marla, rows[2].sarsai), ('', '', ''));
-    expect(rows[2].suggestion, '3K-12M-7S');
-    expect(rows[2].needsReview, isTrue);
-    // K/M/S that disagree with the scanned square feet are kept, flagged, and need a decision.
-    expect(rows[3].needsReview, isTrue);
-    expect((rows[3].kanal, rows[3].marla, rows[3].sarsai), ('9', '0', '8'));
-    expect(rows[3].sftConflict, isTrue);
-    expect(rows[3].ready, isFalse);
-    rows[3].sftDecision = 'kms';
-    expect(rows[3].needsSftDecision, isFalse);
-    expect(rows[0].needsReview, isFalse);
-  });
+  test(
+    'printed square feet are ignored: Kanal/Marla/Sarsai come only from their own columns',
+    () {
+      TableWord word(String text, double x, double y) =>
+          (text: text, x: x, y: y, height: 12);
+      final rows = SchemeScan.read([
+        word('S.NO', 20, 10),
+        word('DESCRIPTION', 100, 10),
+        word('SFT', 240, 10),
+        word('K', 275, 10),
+        word('M', 310, 10),
+        word('S', 345, 10),
+        word('%', 380, 10),
+        word('1', 20, 40), word('TOTAL AREA', 100, 40), word('283140', 240, 40),
+        word('52', 275, 40),
+        word('0', 310, 40),
+        word('0', 345, 40),
+        word('100', 380, 40),
+        // Marla (12) was not read, and the 6 of 62.74 was lost.
+        word('2', 20, 75),
+        word('RESIDENTIAL AREA', 100, 75),
+        word('177607', 240, 75),
+        word('32', 275, 75), word('2', 345, 75), word('2.74', 380, 75),
+        // Nothing but the square feet was read.
+        word('3', 20, 110),
+        word('PARK', 100, 110),
+        word('19817', 240, 110),
+        word('7', 380, 110),
+        // K/M/S disagree with the printed square feet by far more than rounding.
+        word('4', 20, 145),
+        word('COMMERCIAL AREA', 100, 145),
+        word('5662', 240, 145),
+        word('9', 275, 145),
+        word('0', 310, 145),
+        word('8', 345, 145),
+        word('2', 380, 145),
+      ]);
+      // Unread cells stay empty; the printed square feet are never used to fill or question them.
+      expect((rows[1].kanal, rows[1].marla, rows[1].sarsai), ('32', '', '2'));
+      expect(rows[1].needsReview, isTrue);
+      expect((rows[2].kanal, rows[2].marla, rows[2].sarsai), ('', '', ''));
+      expect(rows[2].needsReview, isTrue);
+      expect((rows[3].kanal, rows[3].marla, rows[3].sarsai), ('9', '0', '8'));
+      for (final row in rows) {
+        expect(row.sft, isEmpty);
+        expect(row.suggestion, isEmpty);
+        expect(row.sftConflict, isFalse);
+        expect(row.percent, isEmpty); // calculated by the app
+      }
+      expect(rows[0].needsReview, isFalse);
+    },
+  );
 
   test('descriptions are rebuilt from the key word that can still be read', () {
-    expect(SchemeScan.fixWords('MASJID COMMERICAL 4080 M-15.S-0 .1266M-4.S-4.1/2'), 'MASJID COMMERCIAL');
+    expect(
+      SchemeScan.fixWords('MASJID COMMERICAL 4080 M-15.S-0 .1266M-4.S-4.1/2'),
+      'MASJID COMMERCIAL',
+    );
     expect(SchemeScan.fixWords('TOT.ALAÄEAOF.-ROAD'), 'TOTAL AREA OF ROAD');
     expect(SchemeScan.fixWords('IOXALAAÄE&OF-ROAD'), 'TOTAL AREA OF ROAD');
     expect(SchemeScan.fixWords('PARR'), 'PARK');
     expect(SchemeScan.fixWords('MASJID COUME├åCAL'), 'MASJID COMMERCIAL');
     // Real wording is left alone.
-    expect(SchemeScan.fixWords('MASJID COMMERCIAL BLOCK A'), 'MASJID COMMERCIAL BLOCK A');
-    expect(SchemeScan.fixWords('PUBLIC BUILDING MOSQUE (17M-8S) DISPENSARY (3M)'), 'PUBLIC BUILDING MOSQUE (17M-8S) DISPENSARY (3M)');
+    expect(
+      SchemeScan.fixWords('MASJID COMMERCIAL BLOCK A'),
+      'MASJID COMMERCIAL BLOCK A',
+    );
+    expect(
+      SchemeScan.fixWords('PUBLIC BUILDING MOSQUE (17M-8S) DISPENSARY (3M)'),
+      'PUBLIC BUILDING MOSQUE (17M-8S) DISPENSARY (3M)',
+    );
   });
 
-  test('a total written above the table moves to row 1, the legend below is ignored, and M/S reads Marla.Sarsai', () {
-    TableWord word(String text, double x, double y) =>
-        (text: text, x: x, y: y, height: 22);
-    final rows = SchemeScan.read([
-      word('TOTAL', 201, 72), word('AREA', 302, 74), word('OF', 374, 74), word('SCHEME', 466, 74),
-      word('499851', 603, 73), word('91', 805, 64), word('16', 897, 66),
-      word('S.NO', 120, 150), word('DES', 343, 158), word('SFT', 650, 150), word('K', 819, 145), word('M', 898, 147),
-      word('1.', 153, 223), word('TOTAL AREA OF PLOT', 400, 229), word('329172', 653, 231), word('60', 822, 226), word('09', 905, 227),
-      word('2', 148, 307), word('MASJID COMMERICAL', 330, 308), word('4998', 673, 309), word('O', 831, 302), word('18.5', 920, 302),
-      word('4', 147, 435), word('PARK AND GAREEN BELT', 330, 436), word('25371', 661, 442), word('4', 838, 454), word('13', 907, 454),
-      word('5', 145, 519), word('TOTAL AREA OF SCHEME', 400, 520), word('499851', 656, 524), word('91', 821, 522), word('16', 925, 522),
-      // The legend under the table.
-      word('S.NO', 578, 624), word('LEGEND', 768, 624), word('H.T', 633, 651), word('POLE', 686, 653),
-      word('1', 586, 656), word('L.T', 635, 686), word('POLE', 687, 687), word('2', 586, 688),
-    ]);
-    expect(rows.map((row) => row.description), [
-      'TOTAL AREA OF SCHEME',
-      'TOTAL AREA OF PLOT',
-      'MASJID COMMERCIAL',
-      'PARK AND GREEN BELT',
-    ]);
-    expect(rows.first.classification, AreaClass.gross);
-    expect((rows.first.kanal, rows.first.marla), ('91', '16'));
-    expect(rows.map((row) => row.id), [1, 2, 3, 4]);
-    expect(rows.where((row) => row.classification == AreaClass.gross), hasLength(1));
-  });
+  test(
+    'a total written above the table moves to row 1, the legend below is ignored, and M/S reads Marla.Sarsai',
+    () {
+      TableWord word(String text, double x, double y) =>
+          (text: text, x: x, y: y, height: 22);
+      final rows = SchemeScan.read([
+        word('TOTAL', 201, 72),
+        word('AREA', 302, 74),
+        word('OF', 374, 74),
+        word('SCHEME', 466, 74),
+        word('499851', 603, 73), word('91', 805, 64), word('16', 897, 66),
+        word('S.NO', 120, 150),
+        word('DES', 343, 158),
+        word('SFT', 650, 150),
+        word('K', 819, 145),
+        word('M', 898, 147),
+        word('1.', 153, 223),
+        word('TOTAL AREA OF PLOT', 400, 229),
+        word('329172', 653, 231),
+        word('60', 822, 226),
+        word('09', 905, 227),
+        word('2', 148, 307),
+        word('MASJID COMMERICAL', 330, 308),
+        word('4998', 673, 309),
+        word('O', 831, 302),
+        word('18.5', 920, 302),
+        word('4', 147, 435),
+        word('PARK AND GAREEN BELT', 330, 436),
+        word('25371', 661, 442),
+        word('4', 838, 454),
+        word('13', 907, 454),
+        word('5', 145, 519),
+        word('TOTAL AREA OF SCHEME', 400, 520),
+        word('499851', 656, 524),
+        word('91', 821, 522),
+        word('16', 925, 522),
+        // The legend under the table.
+        word('S.NO', 578, 624),
+        word('LEGEND', 768, 624),
+        word('H.T', 633, 651),
+        word('POLE', 686, 653),
+        word('1', 586, 656),
+        word('L.T', 635, 686),
+        word('POLE', 687, 687),
+        word('2', 586, 688),
+      ]);
+      expect(rows.map((row) => row.description), [
+        'TOTAL AREA OF SCHEME',
+        'TOTAL AREA OF PLOT',
+        'MASJID COMMERCIAL',
+        'PARK AND GREEN BELT',
+      ]);
+      expect(rows.first.classification, AreaClass.gross);
+      expect((rows.first.kanal, rows.first.marla), ('91', '16'));
+      expect(rows.map((row) => row.id), [1, 2, 3, 4]);
+      expect(
+        rows.where((row) => row.classification == AreaClass.gross),
+        hasLength(1),
+      );
+    },
+  );
 
-  test('an M/S column with a % that could not be read keeps Marla.Sarsai apart from the %', () {
-    TableWord word(String text, double x, double y) =>
-        (text: text, x: x, y: y, height: 12);
-    final rows = SchemeScan.read([
-      word('S.NO', 36, 52), word('DES', 138, 52), word('SFT', 246, 53), word('K', 286, 53), word('MIS', 329, 53),
-      word('TOTAL AREA OF PLOT', 140, 75), word('329172', 246, 75), word('59', 290, 75), word('15.0', 330, 75), word('61', 384, 75),
-      word('MASJID COMMERICAL', 140, 107), word('5336', 247, 107), word('o', 286, 107), word("19.4½", 331, 107), word('1', 380, 107),
-      word('TOTAL AREA OF ROAD', 140, 137), word('174654', 243, 137), word('32', 290, 137), word('1.4%', 331, 136), word('32.25', 385, 137),
-      word('PARK', 83, 169), word('28304', 250, 169), word('5', 287, 169), word('4.0', 326, 169), word('5.25', 385, 169),
-    ]);
-    expect([for (final row in rows) '${row.kanal}-${row.marla}-${row.sarsai}'], ['59-15-0', '0-19-4.5', '32-1-4.5', '5-4-0']);
-    expect(rows.map((row) => row.description).last, 'PARK');
-  });
+  test(
+    'an M/S column with a % that could not be read keeps Marla.Sarsai apart from the %',
+    () {
+      TableWord word(String text, double x, double y) =>
+          (text: text, x: x, y: y, height: 12);
+      final rows = SchemeScan.read([
+        word('S.NO', 36, 52),
+        word('DES', 138, 52),
+        word('SFT', 246, 53),
+        word('K', 286, 53),
+        word('MIS', 329, 53),
+        word('TOTAL AREA OF PLOT', 140, 75),
+        word('329172', 246, 75),
+        word('59', 290, 75),
+        word('15.0', 330, 75),
+        word('61', 384, 75),
+        word('MASJID COMMERICAL', 140, 107),
+        word('5336', 247, 107),
+        word('o', 286, 107),
+        word("19.4½", 331, 107),
+        word('1', 380, 107),
+        word('TOTAL AREA OF ROAD', 140, 137),
+        word('174654', 243, 137),
+        word('32', 290, 137),
+        word('1.4%', 331, 136),
+        word('32.25', 385, 137),
+        word('PARK', 83, 169),
+        word('28304', 250, 169),
+        word('5', 287, 169),
+        word('4.0', 326, 169),
+        word('5.25', 385, 169),
+      ]);
+      expect(
+        [for (final row in rows) '${row.kanal}-${row.marla}-${row.sarsai}'],
+        ['59-15-0', '0-19-4.5', '32-1-4.5', '5-4-0'],
+      );
+      expect(rows.map((row) => row.description).last, 'PARK');
+    },
+  );
 }

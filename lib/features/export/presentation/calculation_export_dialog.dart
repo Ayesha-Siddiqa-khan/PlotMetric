@@ -11,7 +11,11 @@ import '../logic/word_exporter.dart';
 
 class CalculationExportDialog extends StatefulWidget {
   final Calculation calculation;
-  final String subtitle, summaryTitle, totalAreaLabel, deductionsLabel, netLabel;
+  final String subtitle,
+      summaryTitle,
+      totalAreaLabel,
+      deductionsLabel,
+      netLabel;
 
   const CalculationExportDialog({
     super.key,
@@ -46,7 +50,8 @@ class CalculationExportDialog extends StatefulWidget {
   }
 
   @override
-  State<CalculationExportDialog> createState() => _CalculationExportDialogState();
+  State<CalculationExportDialog> createState() =>
+      _CalculationExportDialogState();
 }
 
 class _CalculationExportDialogState extends State<CalculationExportDialog> {
@@ -68,11 +73,16 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
     _subtitleController = TextEditingController(text: widget.subtitle);
     final nowStr = DateTime.now().toLocal().toString().split('.').first;
     _metadataController = TextEditingController(
-      text: 'Generated on: $nowStr | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (272.25 sq ft)',
+      text:
+          'Generated on: $nowStr | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (272.25 sq ft)',
     );
     _summaryTitleController = TextEditingController(text: widget.summaryTitle);
-    _totalAreaLabelController = TextEditingController(text: widget.totalAreaLabel);
-    _totalDeductionsLabelController = TextEditingController(text: widget.deductionsLabel);
+    _totalAreaLabelController = TextEditingController(
+      text: widget.totalAreaLabel,
+    );
+    _totalDeductionsLabelController = TextEditingController(
+      text: widget.deductionsLabel,
+    );
     _netBalanceLabelController = TextEditingController(text: widget.netLabel);
   }
 
@@ -99,11 +109,20 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
         totalDeductionsLabel: _totalDeductionsLabelController.text,
         netBalanceLabel: _netBalanceLabelController.text,
       );
-      final rawTitle = widget.calculation.title.trim().isEmpty ? 'Colony_Report' : widget.calculation.title.trim();
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final rawTitle = widget.calculation.title.trim().isEmpty
+          ? 'Colony_Report'
+          : widget.calculation.title.trim();
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       final fileName = '${rawTitle}_$timestamp.pdf';
 
-      final result = await FileSaveHelper.saveBinaryFile(fileName: fileName, bytes: bytes);
+      final result = await FileSaveHelper.saveBinaryFile(
+        fileName: fileName,
+        bytes: bytes,
+      );
       if (!mounted) return;
       if (result.success) {
         setState(() {
@@ -119,19 +138,26 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
               preferWhatsApp: true,
             );
             if (mounted && !shared) {
-              setState(() => _statusMessage = 'Could not open Android sharing. PDF saved as ${result.fileName}.');
+              setState(
+                () => _statusMessage =
+                    'Could not open Android sharing. PDF saved as ${result.fileName}.',
+              );
             }
           } else {
             await FileSaveHelper.openFolder(result.filePath);
             if (mounted) {
-              setState(() => _statusMessage = 'Attach ${result.fileName} in WhatsApp.');
+              setState(
+                () => _statusMessage = 'Attach ${result.fileName} in WhatsApp.',
+              );
             }
           }
         } else {
           await FileSaveHelper.openFile(result.filePath);
         }
       } else {
-        setState(() => _statusMessage = result.errorMessage ?? 'Failed to save PDF');
+        setState(
+          () => _statusMessage = result.errorMessage ?? 'Failed to save PDF',
+        );
       }
     } catch (e) {
       if (mounted) setState(() => _statusMessage = 'Error generating PDF: $e');
@@ -152,11 +178,20 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
         totalDeductionsLabel: _totalDeductionsLabelController.text,
         netBalanceLabel: _netBalanceLabelController.text,
       );
-      final rawTitle = widget.calculation.title.trim().isEmpty ? 'Colony_Report' : widget.calculation.title.trim();
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final rawTitle = widget.calculation.title.trim().isEmpty
+          ? 'Colony_Report'
+          : widget.calculation.title.trim();
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       final fileName = '${rawTitle}_$timestamp.doc';
 
-      final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: content);
+      final result = await FileSaveHelper.saveTextFile(
+        fileName: fileName,
+        content: content,
+      );
       if (result.success) {
         setState(() {
           _lastSavedFilePath = result.filePath;
@@ -164,7 +199,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
         });
         await FileSaveHelper.openFile(result.filePath);
       } else {
-        setState(() => _statusMessage = result.errorMessage ?? 'Failed to save Word document');
+        setState(
+          () => _statusMessage =
+              result.errorMessage ?? 'Failed to save Word document',
+        );
       }
     } catch (e) {
       setState(() => _statusMessage = 'Error exporting Word: $e');
@@ -177,11 +215,20 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
     setState(() => _isProcessing = true);
     try {
       final content = CsvExporter.exportCalculation(widget.calculation);
-      final rawTitle = widget.calculation.title.trim().isEmpty ? 'Colony_Report' : widget.calculation.title.trim();
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      final rawTitle = widget.calculation.title.trim().isEmpty
+          ? 'Colony_Report'
+          : widget.calculation.title.trim();
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       final fileName = '${rawTitle}_$timestamp.csv';
 
-      final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: content);
+      final result = await FileSaveHelper.saveTextFile(
+        fileName: fileName,
+        content: content,
+      );
       if (result.success) {
         setState(() {
           _lastSavedFilePath = result.filePath;
@@ -189,7 +236,9 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
         });
         await FileSaveHelper.openFile(result.filePath);
       } else {
-        setState(() => _statusMessage = result.errorMessage ?? 'Failed to save CSV');
+        setState(
+          () => _statusMessage = result.errorMessage ?? 'Failed to save CSV',
+        );
       }
     } catch (e) {
       setState(() => _statusMessage = 'Error exporting CSV: $e');
@@ -200,7 +249,9 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.calculation.title.isEmpty ? '(Untitled Scheme)' : widget.calculation.title;
+    final title = widget.calculation.title.isEmpty
+        ? '(Untitled Scheme)'
+        : widget.calculation.title;
     final summary = widget.calculation.summary;
 
     return AlertDialog(
@@ -237,8 +288,20 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Entries:', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                      Text('${widget.calculation.entries.length}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      const Text(
+                        'Total Entries:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                      Text(
+                        '${widget.calculation.entries.length}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -246,13 +309,23 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Net Balance:', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                      const Text(
+                        'Net Balance:',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '${summary.netCompositeArea.toDisplayString()} (${summary.netSqFtFormatted} sq ft)',
                           textAlign: TextAlign.right,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.primaryNavy),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            color: AppTheme.primaryNavy,
+                          ),
                         ),
                       ),
                     ],
@@ -264,7 +337,8 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
 
             // Optional Customizable Headers & Summary Accordion/Toggle
             InkWell(
-              onTap: () => setState(() => _showCustomHeaders = !_showCustomHeaders),
+              onTap: () =>
+                  setState(() => _showCustomHeaders = !_showCustomHeaders),
               borderRadius: BorderRadius.circular(6),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -286,7 +360,9 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     ),
                     const Spacer(),
                     Icon(
-                      _showCustomHeaders ? Icons.expand_less : Icons.expand_more,
+                      _showCustomHeaders
+                          ? Icons.expand_less
+                          : Icons.expand_more,
                       size: 18,
                       color: AppTheme.textMuted,
                     ),
@@ -301,7 +377,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Document Subtitle',
                   hintText: 'e.g. LAND MEASUREMENT & COLONY DEDUCTION REPORT',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   isDense: true,
                 ),
                 style: const TextStyle(fontSize: 12),
@@ -312,7 +391,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Date & Units Note (Header Subtitle 2)',
                   hintText: 'e.g. Generated on: ... | 1 Kanal = 20 Marlas...',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   isDense: true,
                 ),
                 style: const TextStyle(fontSize: 12),
@@ -322,7 +404,11 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
               const SizedBox(height: 6),
               const Text(
                 'Customize Summary & Balance Box Labels:',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryNavy,
+                ),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -330,7 +416,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Summary Box Title',
                   hintText: 'e.g. SUMMARY & NET REMAINING BALANCE',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   isDense: true,
                 ),
                 style: const TextStyle(fontSize: 12),
@@ -341,7 +430,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Total Colony / Gross Area Label',
                   hintText: 'e.g. Total Colony Area (+)',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   isDense: true,
                 ),
                 style: const TextStyle(fontSize: 12),
@@ -352,7 +444,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Total Deductions Label',
                   hintText: 'e.g. Total Deductions (Roads/Parks/Mosque) (-)',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   isDense: true,
                 ),
                 style: const TextStyle(fontSize: 12),
@@ -363,7 +458,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Net Remaining Balance Label',
                   hintText: 'e.g. NET REMAINING BALANCE',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   isDense: true,
                 ),
                 style: const TextStyle(fontSize: 12),
@@ -389,10 +487,12 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
             ],
 
             if (_isProcessing)
-              const Center(child: Padding(
-                padding: EdgeInsets.all(12.0),
-                child: CircularProgressIndicator(color: AppTheme.accentTeal),
-              ))
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12.0),
+                  child: CircularProgressIndicator(color: AppTheme.accentTeal),
+                ),
+              )
             else ...[
               // Action Buttons (Compact with icons)
               Row(
@@ -401,12 +501,23 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     child: ElevatedButton.icon(
                       onPressed: _exportPdf,
                       icon: const Icon(Icons.picture_as_pdf, size: 16),
-                      label: const Text('A4 PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      label: const Text(
+                        'A4 PDF',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black87,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                       ),
                     ),
                   ),
@@ -415,12 +526,23 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     child: ElevatedButton.icon(
                       onPressed: () => _exportPdf(share: true),
                       icon: const Icon(Icons.chat, size: 16),
-                      label: const Text('WhatsApp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      label: const Text(
+                        'WhatsApp',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF25D366),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                       ),
                     ),
                   ),
@@ -432,12 +554,28 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _exportWord,
-                      icon: const Icon(Icons.description, size: 16, color: Color(0xFF185ABD)),
-                      label: const Text('Word (.doc)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF185ABD))),
+                      icon: const Icon(
+                        Icons.description,
+                        size: 16,
+                        color: Color(0xFF185ABD),
+                      ),
+                      label: const Text(
+                        'Word (.doc)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF185ABD),
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 10,
+                        ),
                         side: const BorderSide(color: Color(0xFF185ABD)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                       ),
                     ),
                   ),
@@ -445,12 +583,28 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _exportCsv,
-                      icon: const Icon(Icons.table_chart, size: 16, color: Color(0xFF107C41)),
-                      label: const Text('Excel / CSV', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF107C41))),
+                      icon: const Icon(
+                        Icons.table_chart,
+                        size: 16,
+                        color: Color(0xFF107C41),
+                      ),
+                      label: const Text(
+                        'Excel / CSV',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF107C41),
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 10,
+                        ),
                         side: const BorderSide(color: Color(0xFF107C41)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                       ),
                     ),
                   ),
@@ -464,18 +618,28 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          final opened = await FileSaveHelper.openFile(_lastSavedFilePath!);
+                          final opened = await FileSaveHelper.openFile(
+                            _lastSavedFilePath!,
+                          );
                           if (!opened && mounted) {
-                            setState(() => _statusMessage = 'No viewer could open this file.');
+                            setState(
+                              () => _statusMessage =
+                                  'No viewer could open this file.',
+                            );
                           }
                         },
                         icon: const Icon(Icons.open_in_new, size: 16),
-                        label: const Text('Open File', style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          'Open File',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryNavy,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
                         ),
                       ),
                     ),
@@ -483,31 +647,48 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          final shared = await FileSaveHelper.shareFile(_lastSavedFilePath!);
+                          final shared = await FileSaveHelper.shareFile(
+                            _lastSavedFilePath!,
+                          );
                           if (!shared && mounted) {
-                            setState(() => _statusMessage = 'Could not open sharing for this file.');
+                            setState(
+                              () => _statusMessage =
+                                  'Could not open sharing for this file.',
+                            );
                           }
                         },
                         icon: const Icon(Icons.share, size: 16),
-                        label: const Text('Share File', style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          'Share File',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.accentTeal,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                if (!kIsWeb && (!Platform.isAndroid || _lastSavedFilePath!.startsWith('content://')))
+                if (!kIsWeb &&
+                    (!Platform.isAndroid ||
+                        _lastSavedFilePath!.startsWith('content://')))
                   TextButton.icon(
                     icon: const Icon(Icons.folder_open, size: 16),
                     label: const Text('Open Folder'),
                     onPressed: () async {
-                      final opened = await FileSaveHelper.openFolder(_lastSavedFilePath!);
+                      final opened = await FileSaveHelper.openFolder(
+                        _lastSavedFilePath!,
+                      );
                       if (!opened && mounted) {
-                        setState(() => _statusMessage = 'Could not open the export folder.');
+                        setState(
+                          () => _statusMessage =
+                              'Could not open the export folder.',
+                        );
                       }
                     },
                   ),

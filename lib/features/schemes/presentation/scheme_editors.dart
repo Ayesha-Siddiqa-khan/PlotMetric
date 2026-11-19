@@ -215,7 +215,7 @@ class _RowControllersState extends State<_RowControllers> {
     TextEditingController(text: widget.row.marla),
     TextEditingController(text: widget.row.sarsai),
     TextEditingController(
-      text: widget.row.sft.isNotEmpty ? widget.row.sft : plainSquareFeet(widget.row.printedKms),
+      text: '',
     ),
     TextEditingController(text: widget.row.percent),
   ];
@@ -308,10 +308,11 @@ Future<SchemeRow?> editSchemeRow(BuildContext context, SchemeRow original) {
                   child: TextField(
                     controller: sft,
                     keyboardType: areaKeyboard,
-                    decoration: const InputDecoration(labelText: 'Scanned square feet'),
+                    decoration: const InputDecoration(
+                      labelText: 'Square feet (optional: fills Kanal/Marla/Sarsai)',
+                    ),
                     // Typing the square feet fills Kanal/Marla/Sarsai.
                     onChanged: (text) => update(() {
-                      row.sft = text;
                       final value = SchemeArea.decimal(text, 4);
                       if (value == null) return;
                       final units = (value + SchemeArea.unit ~/ 2) ~/ SchemeArea.unit;

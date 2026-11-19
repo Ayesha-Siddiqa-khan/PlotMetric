@@ -5,6 +5,7 @@ import '../../../core/utils/date_time_formatters.dart';
 import '../../../data/models/calculation.dart';
 import '../../export/presentation/calculation_export_dialog.dart';
 import '../../land/state/land_controller.dart';
+import '../../schemes/presentation/saved_schedules_panel.dart';
 import '../../schemes/presentation/scheme_records_screen.dart';
 
 class RecordsScreen extends ConsumerStatefulWidget {
@@ -168,6 +169,7 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
             constraints: const BoxConstraints(maxWidth: 960),
             child: Column(
               children: [
+                SavedSchedulesPanel(isActive: widget.isActive),
                 Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
                   child: Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(
                     onPressed: () => Navigator.push<void>(context,

@@ -18,7 +18,8 @@ class PdfExportService {
   static const double marginHorizontal = 36.0;
   static const double marginTop = 40.0;
   static const double marginBottom = 40.0;
-  static const double contentWidth = a4Width - (marginHorizontal * 2); // 523.28 pt
+  static const double contentWidth =
+      a4Width - (marginHorizontal * 2); // 523.28 pt
 
   static Uint8List generateSchemePdf(SchemeReport report) {
     final pages = <_PdfPageContent>[];
@@ -28,11 +29,20 @@ class PdfExportService {
       page = _PdfPageContent();
       pages.add(page);
       y = a4Height - marginTop;
-      page.drawText(report.draft ? 'HOUSING SCHEME REPORT - DRAFT' : 'HOUSING SCHEME REPORT',
-        x: marginHorizontal, y: y, fontSize: 15, isBold: true);
+      page.drawText(
+        report.draft
+            ? 'HOUSING SCHEME REPORT - DRAFT'
+            : 'HOUSING SCHEME REPORT',
+        x: marginHorizontal,
+        y: y,
+        fontSize: 15,
+        isBold: true,
+      );
       y -= 28;
     }
-    String display(Object? value) => value is double ? value.toStringAsFixed(4).replaceFirst(RegExp(r'0+$'), '')
+
+    String display(Object? value) => value is double
+        ? value.toStringAsFixed(4).replaceFirst(RegExp(r'0+$'), '')
         : value?.toString() ?? '';
     List<String> wrap(String text, int width) {
       if (text.isEmpty) return [''];
@@ -46,10 +56,19 @@ class PdfExportService {
       }
       return [...lines, rest];
     }
+
     void row(List<Object?> cells, List<double> widths, {bool heading = false}) {
-      final columns = [for (final (index, cell) in cells.indexed)
-        wrap(display(cell), ((widths[index] - 8) / 4.8).floor().clamp(3, 180))];
-      final lineCount = columns.fold<int>(1, (max, lines) => lines.length > max ? lines.length : max);
+      final columns = [
+        for (final (index, cell) in cells.indexed)
+          wrap(
+            display(cell),
+            ((widths[index] - 8) / 4.8).floor().clamp(3, 180),
+          ),
+      ];
+      final lineCount = columns.fold<int>(
+        1,
+        (max, lines) => lines.length > max ? lines.length : max,
+      );
       var position = 0;
       while (position < lineCount) {
         if (y < marginBottom + 24) newPage();
@@ -58,10 +77,26 @@ class PdfExportService {
         final height = count * 11 + 8.0;
         var x = marginHorizontal;
         for (var i = 0; i < widths.length; i++) {
-          page.drawRect(x, y - height, widths[i], height, stroke: true, fillGray: heading ? 0.9 : null);
-          for (var line = 0; line < count && line + position < columns[i].length; line++) {
-            page.drawText(columns[i][line + position], x: x + 4, y: y - 12 - line * 11,
-              fontSize: 8, isBold: heading);
+          page.drawRect(
+            x,
+            y - height,
+            widths[i],
+            height,
+            stroke: true,
+            fillGray: heading ? 0.9 : null,
+          );
+          for (
+            var line = 0;
+            line < count && line + position < columns[i].length;
+            line++
+          ) {
+            page.drawText(
+              columns[i][line + position],
+              x: x + 4,
+              y: y - 12 - line * 11,
+              fontSize: 8,
+              isBold: heading,
+            );
           }
           x += widths[i];
         }
@@ -69,12 +104,22 @@ class PdfExportService {
         position += count;
       }
     }
+
     void table(ReportTable table) {
       if (y < marginBottom + 70) newPage();
       y -= 20;
-      page.drawText(table.title, x: marginHorizontal, y: y, fontSize: 11, isBold: true);
+      page.drawText(
+        table.title,
+        x: marginHorizontal,
+        y: y,
+        fontSize: 11,
+        isBold: true,
+      );
       y -= 9;
-      final widths = List.filled(table.headers.length, contentWidth / table.headers.length);
+      final widths = List.filled(
+        table.headers.length,
+        contentWidth / table.headers.length,
+      );
       row(table.headers, widths, heading: true);
       for (final cells in table.rows) {
         if (y < marginBottom + 44) {
@@ -84,21 +129,37 @@ class PdfExportService {
         row(cells, widths);
       }
     }
+
     newPage();
     for (final detail in report.summary) {
-      row([detail.first, detail.skip(1).whereType<Object>().map(display).join('   ')],
-        [175, contentWidth - 175]);
+      row(
+        [
+          detail.first,
+          detail.skip(1).whereType<Object>().map(display).join('   '),
+        ],
+        [175, contentWidth - 175],
+      );
     }
     table(report.schedule);
     table(report.balances);
     table(report.documents);
     if (report.totals.issues.isNotEmpty) {
-      table((title: 'Review Items', headers: ['Item'],
-        rows: [for (final issue in report.totals.issues) [issue]]));
+      table((
+        title: 'Review Items',
+        headers: ['Item'],
+        rows: [
+          for (final issue in report.totals.issues) [issue],
+        ],
+      ));
     }
     final builder = _PdfLowLevelBuilder();
     for (final (index, item) in pages.indexed) {
-      item.drawText('Page ${index + 1} of ${pages.length}', x: marginHorizontal, y: 24, fontSize: 8);
+      item.drawText(
+        'Page ${index + 1} of ${pages.length}',
+        x: marginHorizontal,
+        y: 24,
+        fontSize: 8,
+      );
       builder.addPage(item.generateStream());
     }
     return builder.build();
@@ -115,7 +176,9 @@ class PdfExportService {
     String? netBalanceLabel,
   }) {
     return _buildPdf(
-      title: calculation.title.trim().isEmpty ? 'Colony Land Measurement Report' : calculation.title.trim(),
+      title: calculation.title.trim().isEmpty
+          ? 'Colony Land Measurement Report'
+          : calculation.title.trim(),
       subtitle: subtitle,
       metadataLine: metadataLine,
       summaryTitle: summaryTitle,
@@ -186,7 +249,8 @@ class PdfExportService {
     currentY -= 26;
 
     // Subtitle (Optional, editable)
-    final effectiveSubtitle = (subtitle ?? 'LAND MEASUREMENT & COLONY DEDUCTION REPORT').trim();
+    final effectiveSubtitle =
+        (subtitle ?? 'LAND MEASUREMENT & COLONY DEDUCTION REPORT').trim();
     if (effectiveSubtitle.isNotEmpty) {
       currentPage.drawText(
         _sanitizeText(effectiveSubtitle),
@@ -200,7 +264,8 @@ class PdfExportService {
     }
 
     // Metadata line (Optional, editable)
-    final defaultGeneratedOn = 'Generated on: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (272.25 sq ft)';
+    final defaultGeneratedOn =
+        'Generated on: ${DateTime.now().toLocal().toString().split('.').first} | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (272.25 sq ft)';
     final effectiveMetadata = (metadataLine ?? defaultGeneratedOn).trim();
     if (effectiveMetadata.isNotEmpty) {
       currentPage.drawText(
@@ -215,7 +280,13 @@ class PdfExportService {
     }
 
     // Solid horizontal divider
-    currentPage.drawLine(marginHorizontal, currentY, a4Width - marginHorizontal, currentY, lineWidth: 1.2);
+    currentPage.drawLine(
+      marginHorizontal,
+      currentY,
+      a4Width - marginHorizontal,
+      currentY,
+      lineWidth: 1.2,
+    );
     currentY -= 16;
 
     for (int calcIdx = 0; calcIdx < calculations.length; calcIdx++) {
@@ -229,7 +300,8 @@ class PdfExportService {
           currentY = a4Height - marginTop;
         }
 
-        final calcTitle = 'Scheme #${calcIdx + 1}: ${_sanitizeText(calc.title.isEmpty ? "(Untitled)" : calc.title)}';
+        final calcTitle =
+            'Scheme #${calcIdx + 1}: ${_sanitizeText(calc.title.isEmpty ? "(Untitled)" : calc.title)}';
         currentPage.drawText(
           calcTitle,
           x: a4Width / 2,
@@ -241,7 +313,8 @@ class PdfExportService {
         currentY -= 16;
 
         if (includeSchemeDateTime) {
-          final dateStr = 'Date: ${DateTimeFormatters.storageToDisplayDate(calc.calculationDate)}  |  Time: ${DateTimeFormatters.storageToDisplayTime(calc.calculationTime)}';
+          final dateStr =
+              'Date: ${DateTimeFormatters.storageToDisplayDate(calc.calculationDate)}  |  Time: ${DateTimeFormatters.storageToDisplayTime(calc.calculationTime)}';
           currentPage.drawText(
             dateStr,
             x: a4Width / 2,
@@ -272,21 +345,28 @@ class PdfExportService {
         }
 
         final area = LandMath.centiSarsaiToCompositeArea(rowCenti);
-        final sqFt = LandMath.centiSarsaiToSquareFeet(rowCenti).toStringAsFixed(1);
+        final sqFt = LandMath.centiSarsaiToSquareFeet(
+          rowCenti,
+        ).toStringAsFixed(1);
         final balArea = LandMath.centiSarsaiToCompositeArea(runningCenti.abs());
         final balSign = runningCenti < 0 ? '-' : '';
-        final balStr = '$balSign${balArea.kanal}K - ${balArea.marla}M - ${balArea.sarsaiFormatted}S';
+        final balStr =
+            '$balSign${balArea.kanal}K - ${balArea.marla}M - ${balArea.sarsaiFormatted}S';
 
-        tableRows.add(_TableRowData(
-          srNo: '${i + 1}',
-          purpose: _sanitizeText(entry.purpose.isEmpty ? 'Nil' : entry.purpose),
-          type: entry.isSubtract ? '(-) SUB' : '(+) ADD',
-          kanal: '${area.kanal}',
-          marla: '${area.marla}',
-          sarsai: area.sarsaiFormatted,
-          sqFt: sqFt,
-          balance: balStr,
-        ));
+        tableRows.add(
+          _TableRowData(
+            srNo: '${i + 1}',
+            purpose: _sanitizeText(
+              entry.purpose.isEmpty ? 'Nil' : entry.purpose,
+            ),
+            type: entry.isSubtract ? '(-) SUB' : '(+) ADD',
+            kanal: '${area.kanal}',
+            marla: '${area.marla}',
+            sarsai: area.sarsaiFormatted,
+            sqFt: sqFt,
+            balance: balStr,
+          ),
+        );
       }
 
       // Column widths totaling exactly contentWidth (523.28 pt)
@@ -299,7 +379,16 @@ class PdfExportService {
       // 7. Sq Ft: 80
       // 8. Balance: 110.28
       const colWidths = [32.0, 128.0, 44.0, 42.0, 42.0, 45.0, 80.0, 110.28];
-      const colHeaders = ['Sr.', 'Purpose / Item', 'Type', 'Kanal', 'Marla', 'Sarsai', 'Square Feet', 'Running Balance'];
+      const colHeaders = [
+        'Sr.',
+        'Purpose / Item',
+        'Type',
+        'Kanal',
+        'Marla',
+        'Sarsai',
+        'Square Feet',
+        'Running Balance',
+      ];
 
       // Draw Table Header
       if (currentY < marginBottom + 120) {
@@ -316,7 +405,12 @@ class PdfExportService {
           currentPage = _PdfPageContent();
           pagesContent.add(currentPage);
           currentY = a4Height - marginTop;
-          currentY = _drawTableHeader(currentPage, currentY, colWidths, colHeaders);
+          currentY = _drawTableHeader(
+            currentPage,
+            currentY,
+            colWidths,
+            colHeaders,
+          );
         }
 
         currentY = _drawTableRow(currentPage, currentY, colWidths, row);
@@ -350,7 +444,8 @@ class PdfExportService {
     // Add page numbers and finalize each page into builder
     for (int p = 0; p < pagesContent.length; p++) {
       final page = pagesContent[p];
-      final footerText = 'Page ${p + 1} of ${pagesContent.length}  |  PlotMetric Land Measurement System';
+      final footerText =
+          'Page ${p + 1} of ${pagesContent.length}  |  PlotMetric Land Measurement System';
       page.drawText(
         footerText,
         x: a4Width / 2,
@@ -365,6 +460,163 @@ class PdfExportService {
     return builder.build();
   }
 
+  /// A plain A4-landscape table (any headers, any rows): wrapped cells, a repeated header row on every
+  /// page, and "Page x of y". Text is limited to the Latin characters the built-in fonts can show.
+  static Uint8List generateTablePdf({
+    required String title,
+    String? subtitle,
+    required List<String> headers,
+    required List<List<String>> rows,
+    List<double>? weights,
+    List<bool>? centredColumns,
+  }) {
+    const pageW = a4Height, pageH = a4Width; // landscape
+    const margin = 28.0, fontSize = 8.5, lineHeight = 10.5, pad = 3.5;
+    final contentW = pageW - margin * 2;
+    final shares = weights ?? List.filled(headers.length, 1.0);
+    final totalShare = shares.reduce((a, b) => a + b);
+    final widths = [for (final share in shares) contentW * share / totalShare];
+
+    // Helvetica is narrower than this estimate, so lines wrap a little early rather than overflow.
+    List<String> wrap(String text, double width) {
+      final capacity = ((width - 2 * pad) / (fontSize * 0.58)).floor().clamp(
+        3,
+        400,
+      );
+      final lines = <String>[];
+      var current = '';
+      for (var word in _sanitizeText(text).split(' ')) {
+        while (word.length > capacity) {
+          if (current.isNotEmpty) {
+            lines.add(current);
+            current = '';
+          }
+          lines.add(word.substring(0, capacity));
+          word = word.substring(capacity);
+        }
+        if (current.isEmpty) {
+          current = word;
+        } else if (current.length + 1 + word.length <= capacity) {
+          current = '$current $word';
+        } else {
+          lines.add(current);
+          current = word;
+        }
+      }
+      if (current.isNotEmpty) {
+        lines.add(current);
+      }
+      return lines.isEmpty ? [''] : lines;
+    }
+
+    final headerLines = [
+      for (var i = 0; i < headers.length; i++) wrap(headers[i], widths[i]),
+    ];
+    final headerHeight =
+        headerLines.map((l) => l.length).reduce((a, b) => a > b ? a : b) *
+            lineHeight +
+        2 * pad;
+
+    final pages = <_PdfPageContent>[];
+    late _PdfPageContent page;
+    late double y;
+
+    void drawRow(
+      List<List<String>> cells,
+      double height, {
+      required bool header,
+    }) {
+      final bottom = y - height;
+      var x = margin;
+      for (var i = 0; i < cells.length; i++) {
+        page.drawRect(
+          x,
+          bottom,
+          widths[i],
+          height,
+          fillGray: header ? 0.9 : null,
+          stroke: true,
+          lineWidth: 0.6,
+        );
+        final centred =
+            (centredColumns != null &&
+                i < centredColumns.length &&
+                centredColumns[i]) ||
+            header;
+        for (var l = 0; l < cells[i].length; l++) {
+          page.drawText(
+            cells[i][l],
+            x: centred ? x + widths[i] / 2 : x + pad,
+            y: y - pad - fontSize - l * lineHeight + 1.5,
+            fontSize: fontSize,
+            isBold: header,
+            align: centred ? _PdfTextAlign.center : _PdfTextAlign.left,
+          );
+        }
+        x += widths[i];
+      }
+      y = bottom;
+    }
+
+    void newPage({required bool first}) {
+      page = _PdfPageContent();
+      pages.add(page);
+      y = pageH - margin;
+      if (first) {
+        page.drawText(
+          _sanitizeText(title),
+          x: pageW / 2,
+          y: y - 14,
+          fontSize: 14,
+          isBold: true,
+          align: _PdfTextAlign.center,
+        );
+        y -= 22;
+        if (subtitle != null && subtitle.trim().isNotEmpty) {
+          page.drawText(
+            _sanitizeText(subtitle),
+            x: pageW / 2,
+            y: y - 9,
+            fontSize: 8.5,
+            align: _PdfTextAlign.center,
+          );
+          y -= 16;
+        }
+        y -= 6;
+      }
+      drawRow(headerLines, headerHeight, header: true);
+    }
+
+    newPage(first: true);
+    for (final row in rows) {
+      final cells = [
+        for (var i = 0; i < headers.length; i++)
+          wrap(i < row.length ? row[i] : '', widths[i]),
+      ];
+      final height =
+          cells.map((l) => l.length).reduce((a, b) => a > b ? a : b) *
+              lineHeight +
+          2 * pad;
+      if (y - height < margin + 14) {
+        newPage(first: false);
+      }
+      drawRow(cells, height, header: false);
+    }
+
+    final builder = _PdfLowLevelBuilder(pageWidth: pageW, pageHeight: pageH);
+    for (final (index, content) in pages.indexed) {
+      content.drawText(
+        'PlotMetric  |  Page ${index + 1} of ${pages.length}',
+        x: pageW / 2,
+        y: margin - 12,
+        fontSize: 8,
+        align: _PdfTextAlign.center,
+      );
+      builder.addPage(content.generateStream());
+    }
+    return builder.build();
+  }
+
   static double _drawTableHeader(
     _PdfPageContent page,
     double startY,
@@ -375,7 +627,14 @@ class PdfExportService {
     final endY = startY - rowHeight;
 
     // Background header fill (light gray 0.92 for crisp black & white contrast)
-    page.drawRect(marginHorizontal, endY, contentWidth, rowHeight, fillGray: 0.92, stroke: true);
+    page.drawRect(
+      marginHorizontal,
+      endY,
+      contentWidth,
+      rowHeight,
+      fillGray: 0.92,
+      stroke: true,
+    );
 
     double currentX = marginHorizontal;
     for (int i = 0; i < headers.length; i++) {
@@ -409,7 +668,13 @@ class PdfExportService {
     final endY = startY - rowHeight;
 
     // Cell outer frame
-    page.drawRect(marginHorizontal, endY, contentWidth, rowHeight, stroke: true);
+    page.drawRect(
+      marginHorizontal,
+      endY,
+      contentWidth,
+      rowHeight,
+      stroke: true,
+    );
 
     final values = [
       row.srNo,
@@ -456,21 +721,32 @@ class PdfExportService {
     final endY = startY - boxHeight;
 
     // Summary Box with double-lined border feel (black and white)
-    page.drawRect(marginHorizontal, endY, contentWidth, boxHeight, fillGray: 0.96, stroke: true, lineWidth: 1.0);
+    page.drawRect(
+      marginHorizontal,
+      endY,
+      contentWidth,
+      boxHeight,
+      fillGray: 0.96,
+      stroke: true,
+      lineWidth: 1.0,
+    );
 
     final boxTitle = (summaryTitle != null && summaryTitle.trim().isNotEmpty)
         ? _sanitizeText(summaryTitle)
         : 'SUMMARY & NET REMAINING BALANCE';
 
-    final areaLabel = (totalAreaLabel != null && totalAreaLabel.trim().isNotEmpty)
+    final areaLabel =
+        (totalAreaLabel != null && totalAreaLabel.trim().isNotEmpty)
         ? _sanitizeText(totalAreaLabel)
         : 'Total Colony Area (+)';
 
-    final deductionsLabel = (totalDeductionsLabel != null && totalDeductionsLabel.trim().isNotEmpty)
+    final deductionsLabel =
+        (totalDeductionsLabel != null && totalDeductionsLabel.trim().isNotEmpty)
         ? _sanitizeText(totalDeductionsLabel)
         : 'Total Deductions (Roads/Parks/Mosque) (-)';
 
-    final netLabel = (netBalanceLabel != null && netBalanceLabel.trim().isNotEmpty)
+    final netLabel =
+        (netBalanceLabel != null && netBalanceLabel.trim().isNotEmpty)
         ? _sanitizeText(netBalanceLabel)
         : 'NET REMAINING BALANCE';
 
@@ -483,11 +759,20 @@ class PdfExportService {
       isBold: true,
       align: _PdfTextAlign.center,
     );
-    page.drawLine(marginHorizontal + 20, startY - 18, a4Width - marginHorizontal - 20, startY - 18, lineWidth: 0.5);
+    page.drawLine(
+      marginHorizontal + 20,
+      startY - 18,
+      a4Width - marginHorizontal - 20,
+      startY - 18,
+      lineWidth: 0.5,
+    );
 
-    final addText = '$areaLabel: ${summary.totalAddCompositeArea.toDisplayString()} (${summary.totalAddSqFtFormatted} sq ft)';
-    final subText = '$deductionsLabel: ${summary.totalSubtractCompositeArea.toDisplayString()} (${summary.totalSubtractSqFtFormatted} sq ft)';
-    final netText = '$netLabel: ${summary.netCompositeArea.toDisplayString()} (${summary.netSqFtFormatted} sq ft)';
+    final addText =
+        '$areaLabel: ${summary.totalAddCompositeArea.toDisplayString()} (${summary.totalAddSqFtFormatted} sq ft)';
+    final subText =
+        '$deductionsLabel: ${summary.totalSubtractCompositeArea.toDisplayString()} (${summary.totalSubtractSqFtFormatted} sq ft)';
+    final netText =
+        '$netLabel: ${summary.netCompositeArea.toDisplayString()} (${summary.netSqFtFormatted} sq ft)';
 
     page.drawText(
       addText,
@@ -609,7 +894,13 @@ enum _PdfTextAlign { left, center, right }
 class _PdfPageContent {
   final StringBuffer _stream = StringBuffer();
 
-  void drawLine(double x1, double y1, double x2, double y2, {double lineWidth = 0.75}) {
+  void drawLine(
+    double x1,
+    double y1,
+    double x2,
+    double y2, {
+    double lineWidth = 0.75,
+  }) {
     _stream.writeln('$lineWidth w');
     _stream.writeln('0 G'); // Black stroke
     _stream.writeln('${x1.toStringAsFixed(2)} ${y1.toStringAsFixed(2)} m');
@@ -632,7 +923,9 @@ class _PdfPageContent {
     if (stroke) {
       _stream.writeln('0 G'); // Black stroke
     }
-    _stream.writeln('${x.toStringAsFixed(2)} ${y.toStringAsFixed(2)} ${width.toStringAsFixed(2)} ${height.toStringAsFixed(2)} re');
+    _stream.writeln(
+      '${x.toStringAsFixed(2)} ${y.toStringAsFixed(2)} ${width.toStringAsFixed(2)} ${height.toStringAsFixed(2)} re',
+    );
     if (fillGray != null && stroke) {
       _stream.writeln('B'); // Fill and stroke
     } else if (fillGray != null) {
@@ -670,7 +963,11 @@ class _PdfPageContent {
     _stream.writeln('ET');
   }
 
-  double _measureApproxWidth(String text, double fontSize, {bool isBold = false}) {
+  double _measureApproxWidth(
+    String text,
+    double fontSize, {
+    bool isBold = false,
+  }) {
     final factor = isBold ? 0.54 : 0.50;
     return text.length * fontSize * factor;
   }
@@ -686,6 +983,12 @@ class _PdfPageContent {
 }
 
 class _PdfLowLevelBuilder {
+  _PdfLowLevelBuilder({
+    this.pageWidth = PdfExportService.a4Width,
+    this.pageHeight = PdfExportService.a4Height,
+  });
+
+  final double pageWidth, pageHeight;
 
   void addPage(String pageContentStream) {
     _pageStreams.add(pageContentStream);
@@ -731,15 +1034,21 @@ class _PdfLowLevelBuilder {
       final pageObjId = 5 + (i * 2);
       kids.write('$pageObjId 0 R ');
     }
-    writeString('2 0 obj\n<< /Type /Pages /Kids [ $kids] /Count $pageCount >>\nendobj\n');
+    writeString(
+      '2 0 obj\n<< /Type /Pages /Kids [ $kids] /Count $pageCount >>\nendobj\n',
+    );
 
     // 3 0 obj: Font F1 (Helvetica)
     recordOffset();
-    writeString('3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n');
+    writeString(
+      '3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n',
+    );
 
     // 4 0 obj: Font F2 (Helvetica-Bold)
     recordOffset();
-    writeString('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n');
+    writeString(
+      '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n',
+    );
 
     // Page and Stream objects
     for (int i = 0; i < pageCount; i++) {
@@ -750,13 +1059,15 @@ class _PdfLowLevelBuilder {
       // Page Object
       recordOffset();
       writeString(
-        '$pageObjId 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PdfExportService.a4Width} ${PdfExportService.a4Height}] '
+        '$pageObjId 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 $pageWidth $pageHeight] '
         '/Contents $streamObjId 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>\nendobj\n',
       );
 
       // Stream Object
       recordOffset();
-      writeString('$streamObjId 0 obj\n<< /Length ${streamBytes.length} >>\nstream\n');
+      writeString(
+        '$streamObjId 0 obj\n<< /Length ${streamBytes.length} >>\nstream\n',
+      );
       buffer.add(streamBytes);
       writeString('\nendstream\nendobj\n');
     }

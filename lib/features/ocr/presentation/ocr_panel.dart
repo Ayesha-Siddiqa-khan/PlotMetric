@@ -315,33 +315,39 @@ class OcrPanelState extends State<OcrPanel> {
                 'No OCR engine is available on this platform. Enter the rows by hand.',
               )
             else
-              DropdownButtonFormField<String>(
-                key: ValueKey('$_selected-${_engines.length}'),
-                initialValue: _selected,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Select OCR Engine',
-                  isDense: true,
-                ),
-                items: [
-                  for (final engine in _engines)
-                    DropdownMenuItem(
-                      value: engine.provider.id,
-                      enabled: engine.availability.isReady,
-                      child: Text(
-                        '${engine.provider.name}${engine.provider.online ? ' (online)' : ''}'
-                        '${engine.availability.isReady
-                            ? ''
-                            : engine.availability.status == OcrStatus.unsupported
-                            ? ' — Disabled'
-                            : ' — Setup required'}',
-                        overflow: TextOverflow.ellipsis,
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select OCR Engine'),
+                  RadioGroup<String>(
+                    groupValue: _selected,
+                    onChanged: (value) {
+                      if (!_busy) {
+                        setState(() => _selected = value);
+                      }
+                    },
+                    child: Column(
+                      children: [
+                        // Every engine is listed; the ones that cannot run say why.
+                        for (final engine in _engines)
+                          RadioListTile<String>(
+                            dense: true,
+                            value: engine.provider.id,
+                            enabled: engine.availability.isReady && !_busy,
+                            title: Text(
+                              '${engine.provider.name}${engine.provider.online ? ' (online)' : ''}'
+                              '${engine.availability.isReady
+                                  ? ''
+                                  : engine.availability.status == OcrStatus.unsupported
+                                  ? ' — Disabled'
+                                  : ' — Setup required'}',
+                            ),
+                            subtitle: Text(engine.availability.reason),
+                          ),
+                      ],
                     ),
+                  ),
                 ],
-                onChanged: _busy
-                    ? null
-                    : (value) => setState(() => _selected = value),
               ),
             if (status != null) ...[
               const SizedBox(height: 4),

@@ -252,7 +252,9 @@ class SchemeScan {
       final unambiguousMarla = RegExp(r'^\d+(?:\.0+)?$').hasMatch(combined)
           ? combined
           : '';
-      final rawSft = cell('sft');
+      // Square feet are calculated from Kanal/Marla/Sarsai, never taken from the photo. The printed
+      // square-feet column is only used to keep its numbers out of the other columns.
+      const rawSft = '';
       final marla = cell('m').isNotEmpty
           ? cell('m')
           : kms?.group(2) ?? match?.group(1) ?? dotted?.group(1) ?? unambiguousMarla;

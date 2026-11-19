@@ -6,7 +6,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../data/local/app_database.dart';
 import 'scheme.dart';
 
-typedef SchemeListItem = ({int id, String name, String owner, String approval});
+typedef SchemeListItem = ({int id, String name, String owner, String approval, String updatedAt});
 
 class SchemeRepository {
   SchemeRepository({AppDatabase? database})
@@ -51,7 +51,7 @@ class SchemeRepository {
         '%${search.trim().toLowerCase().replaceAll('!', '!!').replaceAll('%', '!%').replaceAll('_', '!_')}%';
     final rows = await db.query(
       'housing_schemes',
-      columns: ['id', 'name', 'owner', 'approval'],
+      columns: ['id', 'name', 'owner', 'approval', 'updated_at'],
       where:
           "lower(name) LIKE ? ESCAPE '!' OR lower(owner) LIKE ? ESCAPE '!' OR lower(approval) LIKE ? ESCAPE '!'",
       whereArgs: [query, query, query],
@@ -64,6 +64,7 @@ class SchemeRepository {
             name: row['name'] as String,
             owner: row['owner'] as String,
             approval: row['approval'] as String,
+            updatedAt: row['updated_at'] as String,
           ),
         )
         .toList();

@@ -57,7 +57,11 @@ class ApprovedLandRepository {
 
   Future<ApprovedLandEntry?> byId(int id) async {
     final db = await _database.database;
-    final rows = await db.query('approved_land', where: 'id = ?', whereArgs: [id]);
+    final rows = await db.query(
+      'approved_land',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
     return rows.isEmpty ? null : ApprovedLandEntry.fromDb(rows.single);
   }
 
@@ -78,11 +82,18 @@ class ApprovedLandRepository {
     final db = await _database.database;
     return db.transaction((txn) async {
       if (entry.id case final id?) {
-        await txn.update('approved_land', entry.toDb(), where: 'id = ?', whereArgs: [id]);
+        await txn.update(
+          'approved_land',
+          entry.toDb(),
+          where: 'id = ?',
+          whereArgs: [id],
+        );
         return id;
       }
       if (entry.serial == null) {
-        final max = await txn.rawQuery('SELECT MAX(serial) AS value FROM approved_land');
+        final max = await txn.rawQuery(
+          'SELECT MAX(serial) AS value FROM approved_land',
+        );
         entry.serial = ((max.first['value'] as int?) ?? 0) + 1;
       }
       final id = await txn.insert('approved_land', entry.toDb());
@@ -106,20 +117,33 @@ class ApprovedLandRepository {
   }) async {
     final db = await _database.database;
     await db.transaction((txn) async {
-      final rows = await txn.query('approved_land', where: 'id = ?', whereArgs: [id]);
+      final rows = await txn.query(
+        'approved_land',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
       if (rows.isEmpty) return;
       final entry = ApprovedLandEntry.fromDb(rows.single)..schemeId = schemeId;
       // With no ticked rows there is no transfer figure yet; keep what the register already holds.
       if (transferArea != null) {
         entry.transferTotal = LandAreaText.format(transferArea);
         // Nothing typed this time: keep the transferred figure already on record.
-        if (transferred.trim().isNotEmpty) entry.transferred = LandAreaText.normalize(transferred);
-        entry.remaining = ApprovedLandEntry.computeRemaining(entry.transferTotal, entry.transferred);
+        if (transferred.trim().isNotEmpty) {
+          entry.transferred = LandAreaText.normalize(transferred); }
+        entry.remaining = ApprovedLandEntry.computeRemaining(
+          entry.transferTotal,
+          entry.transferred,
+        );
       }
       if (entry.totalArea.trim().isEmpty && totalAreaIfEmpty.isNotEmpty) {
         entry.totalArea = totalAreaIfEmpty;
       }
-      await txn.update('approved_land', entry.toDb(), where: 'id = ?', whereArgs: [id]);
+      await txn.update(
+        'approved_land',
+        entry.toDb(),
+        where: 'id = ?',
+        whereArgs: [id],
+      );
     });
   }
 }

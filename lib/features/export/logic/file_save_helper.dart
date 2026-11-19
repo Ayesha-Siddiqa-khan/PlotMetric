@@ -29,20 +29,28 @@ class FileSaveHelper {
     if (!kIsWeb && Platform.isWindows) {
       final userProfile = Platform.environment['USERPROFILE'];
       if (userProfile != null && userProfile.isNotEmpty) {
-        baseDir = Directory(p.join(userProfile, 'Documents', 'PlotMetric_Exports'));
+        baseDir = Directory(
+          p.join(userProfile, 'Documents', 'PlotMetric_Exports'),
+        );
       } else {
-        baseDir = Directory(p.join(Directory.current.path, 'plotmetric_exports'));
+        baseDir = Directory(
+          p.join(Directory.current.path, 'plotmetric_exports'),
+        );
       }
     } else if (!kIsWeb && (Platform.isLinux || Platform.isMacOS)) {
       final home = Platform.environment['HOME'];
       if (home != null && home.isNotEmpty) {
         baseDir = Directory(p.join(home, 'Documents', 'PlotMetric_Exports'));
       } else {
-        baseDir = Directory(p.join(Directory.current.path, 'plotmetric_exports'));
+        baseDir = Directory(
+          p.join(Directory.current.path, 'plotmetric_exports'),
+        );
       }
     } else {
       // Android / generic fallback
-      baseDir = Directory(p.join(Directory.systemTemp.path, 'PlotMetric_Exports'));
+      baseDir = Directory(
+        p.join(Directory.systemTemp.path, 'PlotMetric_Exports'),
+      );
     }
 
     if (!await baseDir.exists()) {
@@ -59,8 +67,16 @@ class FileSaveHelper {
     try {
       final sanitizedName = _sanitizeFileName(fileName);
       if (!kIsWeb && Platform.isAndroid) {
-        final saved = await NativePlatformHelper.saveAndroidExport(sanitizedName, bytes);
-        return ExportFileResult(success: true, filePath: saved.reference, fileName: saved.name, displayPath: saved.path);
+        final saved = await NativePlatformHelper.saveAndroidExport(
+          sanitizedName,
+          bytes,
+        );
+        return ExportFileResult(
+          success: true,
+          filePath: saved.reference,
+          fileName: saved.name,
+          displayPath: saved.path,
+        );
       }
       final dir = await getExportDirectory();
       final fullPath = p.join(dir.path, sanitizedName);
@@ -96,8 +112,18 @@ class FileSaveHelper {
   }
 
   /// Shares a file via native share sheet or reveals in host system
-  static Future<bool> shareFile(String filePath, {String? mimeType, String title = 'Share Exported File', bool preferWhatsApp = false}) async {
-    return NativePlatformHelper.shareFile(filePath, mimeType: mimeType, title: title, preferWhatsApp: preferWhatsApp);
+  static Future<bool> shareFile(
+    String filePath, {
+    String? mimeType,
+    String title = 'Share Exported File',
+    bool preferWhatsApp = false,
+  }) async {
+    return NativePlatformHelper.shareFile(
+      filePath,
+      mimeType: mimeType,
+      title: title,
+      preferWhatsApp: preferWhatsApp,
+    );
   }
 
   /// Generates a ready-to-share WhatsApp text message summarizing the calculation
@@ -113,7 +139,9 @@ class FileSaveHelper {
     final buffer = StringBuffer();
     buffer.writeln('📋 *PlotMetric - Land Measurement Report*');
     buffer.writeln('🏷️ *Scheme:* ${title.isEmpty ? "(Untitled)" : title}');
-    buffer.writeln('📅 *Date:* ${DateTime.now().toLocal().toString().split('.').first}');
+    buffer.writeln(
+      '📅 *Date:* ${DateTime.now().toLocal().toString().split('.').first}',
+    );
     buffer.writeln('-----------------------------------');
     buffer.writeln('➕ *Total Colony Area:* $totalArea');
 
@@ -140,7 +168,10 @@ class FileSaveHelper {
   /// Opens WhatsApp web or desktop app, or shares text via native share sheet
   static Future<void> shareViaWhatsApp(String text) async {
     if (!kIsWeb && Platform.isAndroid) {
-      final shared = await NativePlatformHelper.shareText(text, title: 'Share via WhatsApp / Apps');
+      final shared = await NativePlatformHelper.shareText(
+        text,
+        title: 'Share via WhatsApp / Apps',
+      );
       if (shared) return;
     }
 
