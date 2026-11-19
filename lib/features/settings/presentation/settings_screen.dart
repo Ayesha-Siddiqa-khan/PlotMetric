@@ -267,12 +267,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'You can open this file now or reveal it in your file explorer.',
+              'You can open this file now, share it via WhatsApp / Drive, or reveal it in your file explorer.',
               style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
             ),
           ],
         ),
         actions: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.share, size: 16),
+            label: const Text('Share (WhatsApp/Drive)'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => FileSaveHelper.shareFile(filePath, title: 'Share $fileName'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('Open File'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryNavy,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => FileSaveHelper.openFile(filePath),
+          ),
           TextButton.icon(
             icon: const Icon(Icons.copy, size: 16),
             label: const Text('Copy Path'),
@@ -287,11 +305,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: const Icon(Icons.folder_open, size: 16),
             label: const Text('Open Folder'),
             onPressed: () => FileSaveHelper.openFolder(filePath),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Open File'),
-            onPressed: () => FileSaveHelper.openFile(filePath),
           ),
         ],
       ),
@@ -342,6 +355,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 label: const Text('Backup to JSON'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primaryNavy,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  setState(() => _isExporting = true);
+                                  try {
+                                    final backupService = ref.read(backupServiceProvider);
+                                    final jsonString = await backupService.exportBackupJson();
+                                    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+                                    final fileName = 'PlotMetric_Backup_$timestamp.json';
+                                    final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: jsonString);
+                                    if (result.success) {
+                                      await FileSaveHelper.shareFile(result.filePath, title: 'Share Database Backup via WhatsApp / Drive');
+                                    } else {
+                                      _showNotification('Failed to generate backup: ${result.errorMessage}', isSuccess: false);
+                                    }
+                                  } catch (e) {
+                                    _showNotification('Error sharing backup: $e', isSuccess: false);
+                                  } finally {
+                                    setState(() => _isExporting = false);
+                                  }
+                                },
+                                icon: const Icon(Icons.share, size: 18),
+                                label: const Text('Share Backup (WhatsApp/Drive)'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF25D366),
                                   foregroundColor: Colors.white,
                                 ),
                               ),

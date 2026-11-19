@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
+import '../../../core/utils/native_platform_helper.dart';
 
 class ExportFileResult {
   final bool success;
@@ -98,44 +99,18 @@ class FileSaveHelper {
   }
 
   /// Opens the file using the host OS default viewer (e.g. PDF viewer, Word, or text editor)
-  static Future<bool> openFile(String filePath) async {
-    if (kIsWeb) return false;
-    try {
-      if (Platform.isWindows) {
-        await Process.run('cmd', ['/c', 'start', '""', filePath], runInShell: true);
-        return true;
-      } else if (Platform.isMacOS) {
-        await Process.run('open', [filePath]);
-        return true;
-      } else if (Platform.isLinux) {
-        await Process.run('xdg-open', [filePath]);
-        return true;
-      }
-    } catch (_) {
-      // Fallback
-    }
-    return false;
+  static Future<bool> openFile(String filePath, {String? mimeType}) async {
+    return NativePlatformHelper.openFile(filePath, mimeType: mimeType);
   }
 
   /// Reveals the file in Windows Explorer or folder browser
   static Future<bool> openFolder(String filePath) async {
-    if (kIsWeb) return false;
-    try {
-      if (Platform.isWindows) {
-        await Process.run('explorer.exe', ['/select,', filePath]);
-        return true;
-      } else if (Platform.isMacOS) {
-        await Process.run('open', ['-R', filePath]);
-        return true;
-      } else if (Platform.isLinux) {
-        final parentDir = p.dirname(filePath);
-        await Process.run('xdg-open', [parentDir]);
-        return true;
-      }
-    } catch (_) {
-      // Fallback
-    }
-    return false;
+    return NativePlatformHelper.openFolder(filePath);
+  }
+
+  /// Shares a file via native share sheet or reveals in host system
+  static Future<bool> shareFile(String filePath, {String? mimeType, String title = 'Share Exported File'}) async {
+    return NativePlatformHelper.shareFile(filePath, mimeType: mimeType, title: title);
   }
 
   /// Generates a ready-to-share WhatsApp text message summarizing the calculation
@@ -175,8 +150,13 @@ class FileSaveHelper {
     return buffer.toString();
   }
 
-  /// Opens WhatsApp web or desktop app with prefilled text
+  /// Opens WhatsApp web or desktop app, or shares text via native share sheet
   static Future<void> shareViaWhatsApp(String text) async {
+    if (!kIsWeb && Platform.isAndroid) {
+      final shared = await NativePlatformHelper.shareText(text, title: 'Share via WhatsApp / Apps');
+      if (shared) return;
+    }
+
     final encoded = Uri.encodeComponent(text);
     final url = 'https://api.whatsapp.com/send?text=$encoded';
     if (!kIsWeb && Platform.isWindows) {

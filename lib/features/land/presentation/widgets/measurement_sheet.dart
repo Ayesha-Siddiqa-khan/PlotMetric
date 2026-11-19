@@ -70,8 +70,67 @@ class MeasurementSheetWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          // Column Headers (Visible when wide)
-          if (!isNarrow) ...[
+          // Column Headers
+          if (isNarrow) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Purpose / Amenity',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 6),
+                  SizedBox(
+                    width: 52,
+                    child: Text(
+                      'Kanal',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      'Marla',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  SizedBox(
+                    width: 48,
+                    child: Text(
+                      'Sarsai',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 32), // delete button + gap
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppTheme.dividerColor),
+          ] else ...[
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 4.0),
               child: Row(

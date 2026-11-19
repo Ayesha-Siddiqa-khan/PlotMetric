@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/land_units.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/native_platform_helper.dart';
 import '../../../core/utils/number_formatters.dart';
 import '../../../data/models/calculation.dart';
 import '../../../data/models/measurement_entry.dart';
@@ -180,6 +181,14 @@ Commercial Zone: 25 Kanal, 0 Marla''';
 
   Future<void> _chooseImageOrDocument() async {
     try {
+      if (Platform.isAndroid) {
+        final path = await NativePlatformHelper.pickImage();
+        if (path != null && File(path).existsSync()) {
+          await _processPickedFile(path);
+        }
+        return;
+      }
+
       if (Platform.isWindows) {
         final script = r'''
 Add-Type -AssemblyName System.Windows.Forms
@@ -288,6 +297,14 @@ if (\$engine) {
 
   Future<void> _takePhotoOrScan() async {
     try {
+      if (Platform.isAndroid) {
+        final path = await NativePlatformHelper.takePhoto();
+        if (path != null && File(path).existsSync()) {
+          await _processPickedFile(path);
+        }
+        return;
+      }
+
       if (Platform.isWindows) {
         await Process.run('cmd', ['/c', 'start', 'microsoft.windows.camera:'], runInShell: true);
         if (mounted) {
@@ -409,28 +426,82 @@ if (\$engine) {
                           style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
                         ),
                         const SizedBox(height: 14),
-                        // Action buttons row
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 8,
+                        // Action buttons row (All 3 in a single line)
+                        Row(
                           children: [
-                            OutlinedButton.icon(
-                              onPressed: _takePhotoOrScan,
-                              icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                              label: const Text('Take Photo / Scan'),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _takePhotoOrScan,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                  side: const BorderSide(color: AppTheme.primaryNavy),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                                child: const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.camera_alt_outlined, size: 20, color: AppTheme.primaryNavy),
+                                    SizedBox(height: 3),
+                                    Text(
+                                      'Take / Scan',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            OutlinedButton.icon(
-                              onPressed: _chooseImageOrDocument,
-                              icon: const Icon(Icons.photo_library_outlined, size: 18),
-                              label: const Text('Choose Image / File'),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _chooseImageOrDocument,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                  side: const BorderSide(color: AppTheme.primaryNavy),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                                child: const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.photo_library_outlined, size: 20, color: AppTheme.primaryNavy),
+                                    SizedBox(height: 3),
+                                    Text(
+                                      'Choose Image',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            ElevatedButton.icon(
-                              onPressed: _loadSampleDocument,
-                              icon: const Icon(Icons.play_arrow, size: 18),
-                              label: const Text('Load Scheme Sample'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.accentTeal,
-                                foregroundColor: Colors.white,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _loadSampleDocument,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.accentTeal,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                ),
+                                child: const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.play_arrow, size: 20, color: Colors.white),
+                                    SizedBox(height: 3),
+                                    Text(
+                                      'Load Scheme',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],

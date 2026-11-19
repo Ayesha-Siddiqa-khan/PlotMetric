@@ -158,9 +158,9 @@ class MeasurementRowWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildKanalField(BuildContext context) {
+  Widget _buildKanalField(BuildContext context, {double width = 72}) {
     return SizedBox(
-      width: 72,
+      width: width,
       child: TextFormField(
         controller: row.kanalController,
         focusNode: row.kanalFocus,
@@ -168,12 +168,12 @@ class MeasurementRowWidget extends StatelessWidget {
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textInputAction: TextInputAction.next,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: width < 60 ? 13 : 14, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           hintText: '0',
           errorText: row.kanalError,
           errorStyle: const TextStyle(fontSize: 9, height: 1),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
         ),
         onTap: () {
           if (row.kanalController.text == '0' || row.kanalController.text.isEmpty) {
@@ -191,9 +191,9 @@ class MeasurementRowWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildMarlaField(BuildContext context) {
+  Widget _buildMarlaField(BuildContext context, {double width = 60}) {
     return SizedBox(
-      width: 60,
+      width: width,
       child: TextFormField(
         controller: row.marlaController,
         focusNode: row.marlaFocus,
@@ -201,12 +201,12 @@ class MeasurementRowWidget extends StatelessWidget {
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textInputAction: TextInputAction.next,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: width < 50 ? 13 : 14, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           hintText: '0',
           errorText: row.marlaError,
           errorStyle: const TextStyle(fontSize: 9, height: 1),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
         ),
         onTap: () {
           if (row.marlaController.text == '0' || row.marlaController.text.isEmpty) {
@@ -224,9 +224,9 @@ class MeasurementRowWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSarsaiField(BuildContext context) {
+  Widget _buildSarsaiField(BuildContext context, {double width = 68}) {
     return SizedBox(
-      width: 68,
+      width: width,
       child: TextFormField(
         controller: row.sarsaiController,
         focusNode: row.sarsaiFocus,
@@ -236,12 +236,12 @@ class MeasurementRowWidget extends StatelessWidget {
         ],
         textInputAction: TextInputAction.done,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: width < 55 ? 13 : 14, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           hintText: '0',
           errorText: row.sarsaiError,
           errorStyle: const TextStyle(fontSize: 9, height: 1),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
         ),
         onTap: () {
           if (row.sarsaiController.text == '0' || row.sarsaiController.text.isEmpty) {
@@ -311,7 +311,10 @@ class MeasurementRowWidget extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _buildSignButton(),
+          if (index == 0)
+            const SizedBox(width: 32)
+          else
+            _buildSignButton(),
           const SizedBox(width: 8),
           Expanded(
             flex: 4,
@@ -342,32 +345,94 @@ class MeasurementRowWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Line 1: Sign + Purpose + Delete
+          // Line 1: Purpose (Total Area) + Kanal + Marla + Sarsai + Delete Button
           Row(
             children: [
-              _buildSignButton(),
-              const SizedBox(width: 8),
-              Expanded(child: _buildPurposeField(context)),
-              if (index > 0) ...[
-                const SizedBox(width: 4),
-                _buildDeleteButton(),
-              ],
+              Expanded(
+                child: _buildPurposeField(context),
+              ),
+              const SizedBox(width: 6),
+              _buildKanalField(context, width: 52),
+              const SizedBox(width: 4),
+              _buildMarlaField(context, width: 44),
+              const SizedBox(width: 4),
+              _buildSarsaiField(context, width: 48),
+              const SizedBox(width: 4),
+              _buildDeleteButton(),
             ],
           ),
-          const SizedBox(height: 6),
-          // Line 2: Kanal + Marla + Sarsai + Sq Ft
-          Row(
-            children: [
-              _buildKanalField(context),
-              const SizedBox(width: 4),
-              _buildMarlaField(context),
-              const SizedBox(width: 4),
-              _buildSarsaiField(context),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildSqFtDisplay(),
-              ),
-            ],
+          const SizedBox(height: 4),
+          // Line 2: Sign / Type Toggle (for row > 0) + Total Square Feet & Balance
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (index > 0)
+                  InkWell(
+                    onTap: onToggleSign,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: row.isSubtract
+                            ? AppTheme.dangerRed.withValues(alpha: 0.1)
+                            : AppTheme.accentTeal.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: row.isSubtract ? AppTheme.dangerRed : AppTheme.accentTeal,
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            row.isSubtract ? Icons.remove : Icons.add,
+                            size: 11,
+                            color: row.isSubtract ? AppTheme.dangerRed : AppTheme.accentTeal,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            row.isSubtract ? 'Deduct' : 'Add',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: row.isSubtract ? AppTheme.dangerRed : AppTheme.accentTeal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${row.sqFtFormatted} sq ft',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: row.isSubtract ? AppTheme.dangerRed : AppTheme.accentTeal,
+                      ),
+                    ),
+                    if (runningRemaining != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '•  Bal: $runningRemaining',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

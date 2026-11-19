@@ -26,7 +26,7 @@ class CalculationExportDialog extends StatefulWidget {
 class _CalculationExportDialogState extends State<CalculationExportDialog> {
   bool _isProcessing = false;
   String? _statusMessage;
-  String? _lastSavedPdfPath;
+  String? _lastSavedFilePath;
   bool _showCustomHeaders = false;
 
   late final TextEditingController _subtitleController;
@@ -80,9 +80,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
       final result = await FileSaveHelper.saveBinaryFile(fileName: fileName, bytes: bytes);
       if (result.success) {
         setState(() {
-          _lastSavedPdfPath = result.filePath;
-          _statusMessage = 'PDF successfully generated & saved:\n${result.filePath}';
+          _lastSavedFilePath = result.filePath;
+          _statusMessage = 'PDF saved: ${result.fileName}';
         });
+        await FileSaveHelper.openFile(result.filePath);
       } else {
         setState(() => _statusMessage = result.errorMessage ?? 'Failed to save PDF');
       }
@@ -111,7 +112,11 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
 
       final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: content);
       if (result.success) {
-        setState(() => _statusMessage = 'Word document (.doc) saved:\n${result.filePath}');
+        setState(() {
+          _lastSavedFilePath = result.filePath;
+          _statusMessage = 'Word document (.doc) saved: ${result.fileName}';
+        });
+        await FileSaveHelper.openFile(result.filePath);
       } else {
         setState(() => _statusMessage = result.errorMessage ?? 'Failed to save Word document');
       }
@@ -132,7 +137,11 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
 
       final result = await FileSaveHelper.saveTextFile(fileName: fileName, content: content);
       if (result.success) {
-        setState(() => _statusMessage = 'CSV spreadsheet saved:\n${result.filePath}');
+        setState(() {
+          _lastSavedFilePath = result.filePath;
+          _statusMessage = 'CSV spreadsheet saved: ${result.fileName}';
+        });
+        await FileSaveHelper.openFile(result.filePath);
       } else {
         setState(() => _statusMessage = result.errorMessage ?? 'Failed to save CSV');
       }
@@ -167,12 +176,12 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
       netBalance: summary.netCompositeArea.toDisplayString(),
       netSqFt: summary.netSqFtFormatted,
       deductions: deductionsList,
-      localFilePath: _lastSavedPdfPath,
+      localFilePath: _lastSavedFilePath,
     );
 
     FileSaveHelper.shareViaWhatsApp(message);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('WhatsApp share text prepared and copied to clipboard!')),
+      const SnackBar(content: Text('WhatsApp share text prepared & opened!')),
     );
   }
 
@@ -220,12 +229,17 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                   ),
                   const SizedBox(height: 4),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Net Balance:', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                      Text(
-                        '${summary.netCompositeArea.toDisplayString()} (${summary.netSqFtFormatted} sq ft)',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryNavy),
+                      const Text('Net Balance:', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${summary.netCompositeArea.toDisplayString()} (${summary.netSqFtFormatted} sq ft)',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.primaryNavy),
+                        ),
                       ),
                     ],
                   ),
@@ -366,73 +380,103 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 child: CircularProgressIndicator(color: AppTheme.accentTeal),
               ))
             else ...[
-              // Action Buttons
-              ElevatedButton.icon(
-                onPressed: _exportPdf,
-                icon: const Icon(Icons.picture_as_pdf, size: 18),
-                label: const Text('Generate Black & White A4 PDF'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              if (_lastSavedPdfPath != null) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => FileSaveHelper.openFile(_lastSavedPdfPath!),
-                        icon: const Icon(Icons.print, size: 16),
-                        label: const Text('Open / Print PDF'),
+              // Action Buttons (Compact with icons)
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _exportPdf,
+                      icon: const Icon(Icons.picture_as_pdf, size: 16),
+                      label: const Text('A4 PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black87,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => FileSaveHelper.openFolder(_lastSavedPdfPath!),
-                        icon: const Icon(Icons.folder_open, size: 16),
-                        label: const Text('Show in Folder'),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _shareViaWhatsApp,
+                      icon: const Icon(Icons.chat, size: 16),
+                      label: const Text('WhatsApp', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
-
-              ElevatedButton.icon(
-                onPressed: _shareViaWhatsApp,
-                icon: const Icon(Icons.chat, size: 18),
-                label: const Text('Share Breakdown via WhatsApp'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
-
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _exportWord,
-                      icon: const Icon(Icons.description, size: 16),
-                      label: const Text('Export Word (.doc)'),
+                      icon: const Icon(Icons.description, size: 16, color: Color(0xFF185ABD)),
+                      label: const Text('Word (.doc)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF185ABD))),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                        side: const BorderSide(color: Color(0xFF185ABD)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _exportCsv,
-                      icon: const Icon(Icons.table_chart, size: 16),
-                      label: const Text('Export CSV'),
+                      icon: const Icon(Icons.table_chart, size: 16, color: Color(0xFF107C41)),
+                      label: const Text('Excel / CSV', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF107C41))),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                        side: const BorderSide(color: Color(0xFF107C41)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
                     ),
                   ),
                 ],
               ),
+
+              if (_lastSavedFilePath != null) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => FileSaveHelper.openFile(_lastSavedFilePath!),
+                        icon: const Icon(Icons.open_in_new, size: 16),
+                        label: const Text('Open File', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryNavy,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => FileSaveHelper.shareFile(_lastSavedFilePath!),
+                        icon: const Icon(Icons.share, size: 16),
+                        label: const Text('Share File', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentTeal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ],
         ),
