@@ -140,9 +140,9 @@ class LandController extends ChangeNotifier {
     _isDirty = true;
     notifyListeners();
 
-    // Focus Kanal on next frame
+    // Focus Purpose / Amenity on next frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      newRow.kanalFocus.requestFocus();
+      newRow.purposeFocus.requestFocus();
     });
   }
 

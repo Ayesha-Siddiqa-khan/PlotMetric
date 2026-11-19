@@ -31,6 +31,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
 
   late final TextEditingController _subtitleController;
   late final TextEditingController _metadataController;
+  late final TextEditingController _summaryTitleController;
+  late final TextEditingController _totalAreaLabelController;
+  late final TextEditingController _totalDeductionsLabelController;
+  late final TextEditingController _netBalanceLabelController;
 
   @override
   void initState() {
@@ -40,12 +44,20 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
     _metadataController = TextEditingController(
       text: 'Generated on: $nowStr | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (272.25 sq ft)',
     );
+    _summaryTitleController = TextEditingController(text: 'SUMMARY & NET REMAINING BALANCE');
+    _totalAreaLabelController = TextEditingController(text: 'Total Colony Area (+)');
+    _totalDeductionsLabelController = TextEditingController(text: 'Total Deductions (Roads/Parks/Mosque) (-)');
+    _netBalanceLabelController = TextEditingController(text: 'NET REMAINING BALANCE');
   }
 
   @override
   void dispose() {
     _subtitleController.dispose();
     _metadataController.dispose();
+    _summaryTitleController.dispose();
+    _totalAreaLabelController.dispose();
+    _totalDeductionsLabelController.dispose();
+    _netBalanceLabelController.dispose();
     super.dispose();
   }
 
@@ -56,6 +68,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
         widget.calculation,
         subtitle: _subtitleController.text,
         metadataLine: _metadataController.text,
+        summaryTitle: _summaryTitleController.text,
+        totalAreaLabel: _totalAreaLabelController.text,
+        totalDeductionsLabel: _totalDeductionsLabelController.text,
+        netBalanceLabel: _netBalanceLabelController.text,
       );
       final rawTitle = widget.calculation.title.trim().isEmpty ? 'Colony_Report' : widget.calculation.title.trim();
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
@@ -84,6 +100,10 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
         widget.calculation,
         subtitle: _subtitleController.text,
         metadataLine: _metadataController.text,
+        summaryTitle: _summaryTitleController.text,
+        totalAreaLabel: _totalAreaLabelController.text,
+        totalDeductionsLabel: _totalDeductionsLabelController.text,
+        netBalanceLabel: _netBalanceLabelController.text,
       );
       final rawTitle = widget.calculation.title.trim().isEmpty ? 'Colony_Report' : widget.calculation.title.trim();
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
@@ -214,7 +234,7 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
             ),
             const SizedBox(height: 10),
 
-            // Optional Customizable Headers Accordion/Toggle
+            // Optional Customizable Headers & Summary Accordion/Toggle
             InkWell(
               onTap: () => setState(() => _showCustomHeaders = !_showCustomHeaders),
               borderRadius: BorderRadius.circular(6),
@@ -229,7 +249,7 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                     ),
                     const SizedBox(width: 6),
                     const Text(
-                      'Customize Header & Subtitle (Optional)',
+                      'Customize Header, Subtitle & Summary Labels (Optional)',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -264,6 +284,57 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Date & Units Note (Header Subtitle 2)',
                   hintText: 'e.g. Generated on: ... | 1 Kanal = 20 Marlas...',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1, color: AppTheme.dividerColor),
+              const SizedBox(height: 6),
+              const Text(
+                'Customize Summary & Balance Box Labels:',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _summaryTitleController,
+                decoration: const InputDecoration(
+                  labelText: 'Summary Box Title',
+                  hintText: 'e.g. SUMMARY & NET REMAINING BALANCE',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _totalAreaLabelController,
+                decoration: const InputDecoration(
+                  labelText: 'Total Colony / Gross Area Label',
+                  hintText: 'e.g. Total Colony Area (+)',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _totalDeductionsLabelController,
+                decoration: const InputDecoration(
+                  labelText: 'Total Deductions Label',
+                  hintText: 'e.g. Total Deductions (Roads/Parks/Mosque) (-)',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _netBalanceLabelController,
+                decoration: const InputDecoration(
+                  labelText: 'Net Remaining Balance Label',
+                  hintText: 'e.g. NET REMAINING BALANCE',
                   contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   isDense: true,
                 ),

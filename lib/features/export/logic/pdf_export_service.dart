@@ -26,11 +26,19 @@ class PdfExportService {
     Calculation calculation, {
     String? subtitle,
     String? metadataLine,
+    String? summaryTitle,
+    String? totalAreaLabel,
+    String? totalDeductionsLabel,
+    String? netBalanceLabel,
   }) {
     return _buildPdf(
       title: calculation.title.trim().isEmpty ? 'Colony Land Measurement Report' : calculation.title.trim(),
       subtitle: subtitle,
       metadataLine: metadataLine,
+      summaryTitle: summaryTitle,
+      totalAreaLabel: totalAreaLabel,
+      totalDeductionsLabel: totalDeductionsLabel,
+      netBalanceLabel: netBalanceLabel,
       calculations: [calculation],
     );
   }
@@ -41,11 +49,19 @@ class PdfExportService {
     String title = 'PlotMetric Complete Records Report',
     String? subtitle,
     String? metadataLine,
+    String? summaryTitle,
+    String? totalAreaLabel,
+    String? totalDeductionsLabel,
+    String? netBalanceLabel,
   }) {
     return _buildPdf(
       title: title,
       subtitle: subtitle,
       metadataLine: metadataLine,
+      summaryTitle: summaryTitle,
+      totalAreaLabel: totalAreaLabel,
+      totalDeductionsLabel: totalDeductionsLabel,
+      netBalanceLabel: netBalanceLabel,
       calculations: calculations,
     );
   }
@@ -54,6 +70,10 @@ class PdfExportService {
     required String title,
     String? subtitle,
     String? metadataLine,
+    String? summaryTitle,
+    String? totalAreaLabel,
+    String? totalDeductionsLabel,
+    String? netBalanceLabel,
     required List<Calculation> calculations,
   }) {
     final builder = _PdfLowLevelBuilder();
@@ -220,7 +240,15 @@ class PdfExportService {
       }
 
       currentY -= 8;
-      currentY = _drawSummaryBox(currentPage, currentY, summary);
+      currentY = _drawSummaryBox(
+        currentPage,
+        currentY,
+        summary,
+        summaryTitle: summaryTitle,
+        totalAreaLabel: totalAreaLabel,
+        totalDeductionsLabel: totalDeductionsLabel,
+        netBalanceLabel: netBalanceLabel,
+      );
       currentY -= 20;
     }
 
@@ -323,17 +351,37 @@ class PdfExportService {
   static double _drawSummaryBox(
     _PdfPageContent page,
     double startY,
-    LandWorksheetSummary summary,
-  ) {
+    LandWorksheetSummary summary, {
+    String? summaryTitle,
+    String? totalAreaLabel,
+    String? totalDeductionsLabel,
+    String? netBalanceLabel,
+  }) {
     const boxHeight = 74.0;
     final endY = startY - boxHeight;
 
     // Summary Box with double-lined border feel (black and white)
     page.drawRect(marginHorizontal, endY, contentWidth, boxHeight, fillGray: 0.96, stroke: true, lineWidth: 1.0);
 
+    final boxTitle = (summaryTitle != null && summaryTitle.trim().isNotEmpty)
+        ? _sanitizeText(summaryTitle)
+        : 'SUMMARY & NET REMAINING BALANCE';
+
+    final areaLabel = (totalAreaLabel != null && totalAreaLabel.trim().isNotEmpty)
+        ? _sanitizeText(totalAreaLabel)
+        : 'Total Colony Area (+)';
+
+    final deductionsLabel = (totalDeductionsLabel != null && totalDeductionsLabel.trim().isNotEmpty)
+        ? _sanitizeText(totalDeductionsLabel)
+        : 'Total Deductions (Roads/Parks/Mosque) (-)';
+
+    final netLabel = (netBalanceLabel != null && netBalanceLabel.trim().isNotEmpty)
+        ? _sanitizeText(netBalanceLabel)
+        : 'NET REMAINING BALANCE';
+
     // Box Title (Centralized)
     page.drawText(
-      'SUMMARY & NET REMAINING BALANCE',
+      boxTitle,
       x: a4Width / 2,
       y: startY - 14,
       fontSize: 11,
@@ -342,9 +390,9 @@ class PdfExportService {
     );
     page.drawLine(marginHorizontal + 20, startY - 18, a4Width - marginHorizontal - 20, startY - 18, lineWidth: 0.5);
 
-    final addText = 'Total Colony Area (+): ${summary.totalAddCompositeArea.toDisplayString()} (${summary.totalAddSqFtFormatted} sq ft)';
-    final subText = 'Total Deductions (Roads/Parks/Mosque) (-): ${summary.totalSubtractCompositeArea.toDisplayString()} (${summary.totalSubtractSqFtFormatted} sq ft)';
-    final netText = 'NET REMAINING BALANCE: ${summary.netCompositeArea.toDisplayString()} (${summary.netSqFtFormatted} sq ft)';
+    final addText = '$areaLabel: ${summary.totalAddCompositeArea.toDisplayString()} (${summary.totalAddSqFtFormatted} sq ft)';
+    final subText = '$deductionsLabel: ${summary.totalSubtractCompositeArea.toDisplayString()} (${summary.totalSubtractSqFtFormatted} sq ft)';
+    final netText = '$netLabel: ${summary.netCompositeArea.toDisplayString()} (${summary.netSqFtFormatted} sq ft)';
 
     page.drawText(
       addText,
@@ -402,6 +450,18 @@ class PdfExportService {
       'سرسائی': 'Sarsai',
       'کالونی': 'Colony',
     };
+
+    // Pre-replace common non-ASCII math and dimension punctuation with ASCII equivalents
+    text = text
+        .replaceAll('×', ' x ')
+        .replaceAll('✕', ' x ')
+        .replaceAll('✖', ' x ')
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
+        .replaceAll('”', '"')
+        .replaceAll('“', '"')
+        .replaceAll('’', "'")
+        .replaceAll('‘', "'");
 
     for (final entry in replacements.entries) {
       if (text.contains(entry.key)) {

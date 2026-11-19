@@ -10,8 +10,13 @@ import '../logic/dimension_math.dart';
 
 class DimensionScreen extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToLand;
+  final bool isActive;
 
-  const DimensionScreen({super.key, this.onNavigateToLand});
+  const DimensionScreen({
+    super.key,
+    this.onNavigateToLand,
+    this.isActive = false,
+  });
 
   @override
   ConsumerState<DimensionScreen> createState() => _DimensionScreenState();
@@ -35,7 +40,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
   final TextEditingController _widthInchesCtrl = TextEditingController(text: '5');
   final TextEditingController _lengthFeetCtrl = TextEditingController(text: '70');
   final TextEditingController _lengthInchesCtrl = TextEditingController(text: '0');
-  final TextEditingController _plotLabelCtrl = TextEditingController(text: 'Plot (10\' - 5" × 70\' - 0")');
+  final TextEditingController _plotLabelCtrl = TextEditingController(text: 'Plot (10\' - 5" x 70\' - 0")');
 
   // Mode 1 Controller (Direct Sq Ft)
   final TextEditingController _directSqFtCtrl = TextEditingController(text: '729.17');
@@ -53,6 +58,22 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
 
     // Autofocus Plot Width / Front (Feet) by default after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _triggerAutoFocus();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant DimensionScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _triggerAutoFocus();
+      });
+    }
+  }
+
+  void _triggerAutoFocus() {
+    if (_selectedMode == 0) {
       _widthFeetFocus.requestFocus();
       if (_widthFeetCtrl.text.isNotEmpty) {
         _widthFeetCtrl.selection = TextSelection(
@@ -60,7 +81,15 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
           extentOffset: _widthFeetCtrl.text.length,
         );
       }
-    });
+    } else {
+      _directSqFtFocus.requestFocus();
+      if (_directSqFtCtrl.text.isNotEmpty) {
+        _directSqFtCtrl.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _directSqFtCtrl.text.length,
+        );
+      }
+    }
   }
 
   void _attachFocusListeners() {
@@ -157,7 +186,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
         final dispWI = wI.isEmpty ? '0' : wI;
         final dispLF = lF.isEmpty ? '0' : lF;
         final dispLI = lI.isEmpty ? '0' : lI;
-        _plotLabelCtrl.text = 'Plot ($dispWF\' - $dispWI" × $dispLF\' - $dispLI")';
+        _plotLabelCtrl.text = 'Plot ($dispWF\' - $dispWI" x $dispLF\' - $dispLI")';
       }
     }
     setState(() {});
@@ -431,6 +460,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       controller: _widthFeetCtrl,
                       focusNode: _widthFeetFocus,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Feet (فٹ)',
@@ -449,6 +479,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       controller: _widthInchesCtrl,
                       focusNode: _widthInchesFocus,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Inches (انچ)',
@@ -478,6 +509,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       controller: _lengthFeetCtrl,
                       focusNode: _lengthFeetFocus,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Feet (فٹ)',
@@ -496,6 +528,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                       controller: _lengthInchesCtrl,
                       focusNode: _lengthInchesFocus,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Inches (انچ)',
@@ -611,6 +644,7 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                 controller: _directSqFtCtrl,
                 focusNode: _directSqFtFocus,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
                   labelText: 'Square Feet (sq ft)',
@@ -719,9 +753,13 @@ class _DimensionScreenState extends ConsumerState<DimensionScreen> {
                     icon: const Icon(Icons.copy, size: 18, color: AppTheme.accentTeal),
                     tooltip: 'Copy results',
                     onPressed: () {
+                      final plotDesc = _selectedMode == 0
+                          ? _plotLabelCtrl.text.trim()
+                          : _directLabelCtrl.text.trim();
+                      final descPrefix = plotDesc.isNotEmpty ? '$plotDesc\n' : '';
                       final text = _includeSqYards
-                          ? 'Area: ${result.squareFeetFormatted} sq ft (${result.squareYardsFormatted} sq yards) = ${result.compositeArea.toDisplayString()}'
-                          : 'Area: ${result.squareFeetFormatted} sq ft = ${result.compositeArea.toDisplayString()}';
+                          ? '$descPrefix${result.compositeArea.toDisplayString()} = Area: ${result.squareFeetFormatted} sq ft (${result.squareYardsFormatted} sq yards)'
+                          : '$descPrefix${result.compositeArea.toDisplayString()} = Area: ${result.squareFeetFormatted} sq ft';
                       Clipboard.setData(ClipboardData(text: text));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(

@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/land_units.dart';
 import '../../../core/theme/app_theme.dart';
@@ -24,6 +26,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   final TextEditingController _schemeTitleController = TextEditingController(text: 'Imported Plan');
   List<ParsedMeasurementItem> _extractedItems = [];
   bool _hasParsed = false;
+  String? _previewImagePath;
+  bool _isOcrProcessing = false;
 
   static const String _defaultSample = '''Ittefaq City Housing Scheme Plan
 Total Area: 500 Kanal, 0 Marla, 0 Sarsai
@@ -174,35 +178,161 @@ Commercial Zone: 25 Kanal, 0 Marla''';
     CalculationExportDialog.show(context, calculation);
   }
 
-  void _showCameraDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Capture or Choose Document Image'),
-        content: const Text(
-          'You can paste document text directly or test with the built-in colony sample.\n\n'
-          'To enable direct camera capture and hardware photo picking, the optional "image_picker" '
-          'plugin can be installed via PowerShell.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _loadSampleDocument();
-            },
-            style: ElevatedButton.styleFrom(
+  Future<void> _chooseImageOrDocument() async {
+    try {
+      if (Platform.isWindows) {
+        final script = r'''
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = 'Select Document or Image to Scan'
+$dialog.Filter = 'Supported Files (*.png;*.jpg;*.jpeg;*.txt;*.csv)|*.png;*.jpg;*.jpeg;*.txt;*.csv|Images (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg|Text Documents (*.txt;*.csv)|*.txt;*.csv|All Files (*.*)|*.*'
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  Write-Output $dialog.FileName
+}
+''';
+        final result = await Process.run('powershell', ['-NoProfile', '-Command', script]);
+        final selectedPath = result.stdout.toString().trim();
+        if (selectedPath.isNotEmpty && File(selectedPath).existsSync()) {
+          await _processPickedFile(selectedPath);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting file: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _processPickedFile(String filePath) async {
+    final ext = filePath.split('.').last.toLowerCase();
+    if (ext == 'txt' || ext == 'csv') {
+      try {
+        final text = await File(filePath).readAsString();
+        setState(() {
+          _previewImagePath = null;
+          _documentTextController.text = text;
+        });
+        _parseCurrentText();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Loaded document: ${filePath.split('\\').last}'),
               backgroundColor: AppTheme.accentTeal,
-              foregroundColor: Colors.white,
             ),
-            child: const Text('Try Sample Document'),
-          ),
-        ],
-      ),
-    );
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error reading text file: $e')),
+          );
+        }
+      }
+    } else if (['png', 'jpg', 'jpeg', 'bmp'].contains(ext)) {
+      setState(() {
+        _previewImagePath = filePath;
+        _isOcrProcessing = true;
+      });
+
+      String ocrText = '';
+      try {
+        final escaped = filePath.replaceAll("'", "''");
+        final ocrScript = '''
+[Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime] | Out-Null
+[Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType = WindowsRuntime] | Out-Null
+[Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime] | Out-Null
+
+\$file = [Windows.Storage.StorageFile]::GetFileFromPathAsync('$escaped').GetAwaiter().GetResult()
+\$stream = \$file.OpenAsync([Windows.Storage.FileAccessMode]::Read).GetAwaiter().GetResult()
+\$decoder = [Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync(\$stream).GetAwaiter().GetResult()
+\$softwareBitmap = \$decoder.GetSoftwareBitmapAsync().GetAwaiter().GetResult()
+\$engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+if (\$engine) {
+    \$ocrResult = \$engine.RecognizeAsync(\$softwareBitmap).GetAwaiter().GetResult()
+    Write-Output \$ocrResult.Text
+}
+''';
+        final ocrProcess = await Process.run('powershell', ['-NoProfile', '-Command', ocrScript]);
+        ocrText = ocrProcess.stdout.toString().trim();
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _isOcrProcessing = false;
+          if (ocrText.isNotEmpty) {
+            _documentTextController.text = ocrText;
+          }
+        });
+
+        if (ocrText.isNotEmpty) {
+          _parseCurrentText();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Document OCR scan complete! Measurements extracted.'),
+              backgroundColor: AppTheme.accentTeal,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image loaded for visual review. You can paste or type document figures.'),
+              backgroundColor: AppTheme.primaryNavy,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _takePhotoOrScan() async {
+    try {
+      if (Platform.isWindows) {
+        await Process.run('cmd', ['/c', 'start', 'microsoft.windows.camera:'], runInShell: true);
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.camera_alt, color: AppTheme.primaryNavy),
+                  SizedBox(width: 8),
+                  Text('Camera Opened'),
+                ],
+              ),
+              content: const Text(
+                'Windows Camera has opened.\n\n'
+                '1. Capture or snapshot your document.\n'
+                '2. Click "Choose Captured Image" to select and OCR scan it.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _chooseImageOrDocument();
+                  },
+                  icon: const Icon(Icons.photo_library, size: 16),
+                  label: const Text('Choose Captured Image'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentTeal,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        _chooseImageOrDocument();
+      }
+    } catch (_) {
+      _chooseImageOrDocument();
+    }
   }
 
   LandWorksheetSummary _computeExtractionSummary() {
@@ -285,14 +415,14 @@ Commercial Zone: 25 Kanal, 0 Marla''';
                           runSpacing: 8,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: _showCameraDialog,
+                              onPressed: _takePhotoOrScan,
                               icon: const Icon(Icons.camera_alt_outlined, size: 18),
                               label: const Text('Take Photo / Scan'),
                             ),
                             OutlinedButton.icon(
-                              onPressed: _showCameraDialog,
+                              onPressed: _chooseImageOrDocument,
                               icon: const Icon(Icons.photo_library_outlined, size: 18),
-                              label: const Text('Choose Image'),
+                              label: const Text('Choose Image / File'),
                             ),
                             ElevatedButton.icon(
                               onPressed: _loadSampleDocument,
@@ -305,6 +435,64 @@ Commercial Zone: 25 Kanal, 0 Marla''';
                             ),
                           ],
                         ),
+                        if (_isOcrProcessing) ...[
+                          const SizedBox(height: 12),
+                          const Row(
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accentTeal),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Running Windows OCR text extraction on image...', style: TextStyle(fontSize: 12, color: AppTheme.accentTeal)),
+                            ],
+                          ),
+                        ],
+                        if (_previewImagePath != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.paleBackground,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.dividerColor),
+                            ),
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.file(
+                                    File(_previewImagePath!),
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 40),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Selected Image:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      Text(
+                                        _previewImagePath!.split('\\').last,
+                                        style: const TextStyle(fontSize: 12, color: AppTheme.primaryNavy),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  tooltip: 'Clear image',
+                                  onPressed: () => setState(() => _previewImagePath = null),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         // Raw text input area
                         TextField(
@@ -711,6 +899,7 @@ Commercial Zone: 25 Kanal, 0 Marla''';
       child: TextFormField(
         initialValue: item.kanal == 0 ? '' : item.kanal.toString(),
         keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textAlign: TextAlign.center,
         decoration: const InputDecoration(
           hintText: '0',
@@ -734,6 +923,7 @@ Commercial Zone: 25 Kanal, 0 Marla''';
       child: TextFormField(
         initialValue: item.marla == 0 ? '' : item.marla.toString(),
         keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textAlign: TextAlign.center,
         decoration: const InputDecoration(
           hintText: '0',
@@ -757,6 +947,9 @@ Commercial Zone: 25 Kanal, 0 Marla''';
       child: TextFormField(
         initialValue: item.sarsaiCenti == 0 ? '' : NumberFormatters.formatSarsaiFromCenti(item.sarsaiCenti),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+        ],
         textAlign: TextAlign.center,
         decoration: const InputDecoration(
           hintText: '0',

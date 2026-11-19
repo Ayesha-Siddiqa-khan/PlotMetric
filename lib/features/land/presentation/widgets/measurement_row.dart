@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../state/land_row_model.dart';
 
@@ -69,9 +70,9 @@ class MeasurementRowWidget extends StatelessWidget {
   }
 
   Widget _buildPurposeField(BuildContext context) {
-    final displayText = (row.purpose == 'Nil' || row.purpose.isEmpty) ? '' : row.purpose;
-    return Autocomplete<String>(
-      initialValue: TextEditingValue(text: displayText),
+    return RawAutocomplete<String>(
+      focusNode: row.purposeFocus,
+      textEditingController: row.purposeController,
       optionsBuilder: (TextEditingValue textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
         if (query.isEmpty) {
@@ -80,16 +81,16 @@ class MeasurementRowWidget extends StatelessWidget {
         return purposeSuggestions.where((p) => p.toLowerCase().contains(query));
       },
       onSelected: (String selection) {
+        row.purposeController.text = selection;
         onPurposeChanged(selection);
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        if (controller.text != displayText && (controller.text.isNotEmpty || row.purpose != 'Nil')) {
-          controller.text = displayText;
-        }
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
           maxLength: 60,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => row.kanalFocus.requestFocus(),
           onTap: () {
             if (controller.text == 'Nil' || controller.text == '') {
               controller.clear();
@@ -164,6 +165,7 @@ class MeasurementRowWidget extends StatelessWidget {
         controller: row.kanalController,
         focusNode: row.kanalFocus,
         keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textInputAction: TextInputAction.next,
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -196,6 +198,7 @@ class MeasurementRowWidget extends StatelessWidget {
         controller: row.marlaController,
         focusNode: row.marlaFocus,
         keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textInputAction: TextInputAction.next,
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -228,6 +231,9 @@ class MeasurementRowWidget extends StatelessWidget {
         controller: row.sarsaiController,
         focusNode: row.sarsaiFocus,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+        ],
         textInputAction: TextInputAction.done,
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),

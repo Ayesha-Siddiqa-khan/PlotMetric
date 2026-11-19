@@ -57,12 +57,17 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
         onNavigateToRecords: () => _onTabSelected(3),
         onNavigateToDimensions: () => _onTabSelected(1),
         onNavigateToSettings: () => _onTabSelected(5),
+        isActive: _currentIndex == 0,
       ),
-      DimensionScreen(onNavigateToLand: () => _onTabSelected(0)),
+      DimensionScreen(
+        onNavigateToLand: () => _onTabSelected(0),
+        isActive: _currentIndex == 1,
+      ),
       const CalculatorScreen(),
       RecordsScreen(
         onOpenCalculation: _onOpenCalculation,
         onNavigateToSettings: () => _onTabSelected(5),
+        isActive: _currentIndex == 3,
       ),
       ScanScreen(onNavigateToLand: () => _onTabSelected(0)),
       SettingsScreen(

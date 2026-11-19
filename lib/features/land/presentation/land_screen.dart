@@ -13,12 +13,14 @@ class LandScreen extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToRecords;
   final VoidCallback? onNavigateToDimensions;
   final VoidCallback? onNavigateToSettings;
+  final bool isActive;
 
   const LandScreen({
     super.key,
     this.onNavigateToRecords,
     this.onNavigateToDimensions,
     this.onNavigateToSettings,
+    this.isActive = true,
   });
 
   @override
@@ -34,12 +36,25 @@ class _LandScreenState extends ConsumerState<LandScreen> {
     final controller = ref.read(landControllerProvider);
     _titleController = TextEditingController(text: controller.title);
 
-    // Initial autofocus on first row's Kanal after first frame
+    // Initial autofocus on first row's Purpose / Amenity after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (controller.rows.isNotEmpty) {
-        controller.rows.first.kanalFocus.requestFocus();
+        controller.rows.first.purposeFocus.requestFocus();
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant LandScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      final controller = ref.read(landControllerProvider);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (controller.rows.isNotEmpty) {
+          controller.rows.first.purposeFocus.requestFocus();
+        }
+      });
+    }
   }
 
   @override

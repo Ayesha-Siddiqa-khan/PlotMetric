@@ -9,11 +9,13 @@ import '../../land/state/land_controller.dart';
 class RecordsScreen extends ConsumerStatefulWidget {
   final void Function(Calculation calc) onOpenCalculation;
   final VoidCallback? onNavigateToSettings;
+  final bool isActive;
 
   const RecordsScreen({
     super.key,
     required this.onOpenCalculation,
     this.onNavigateToSettings,
+    this.isActive = false,
   });
 
   @override
@@ -30,6 +32,14 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
   void initState() {
     super.initState();
     _loadCalculations();
+  }
+
+  @override
+  void didUpdateWidget(covariant RecordsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      _loadCalculations(_searchController.text.trim());
+    }
   }
 
   @override
@@ -126,6 +136,12 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(landControllerProvider, (_, __) {
+      if (mounted) {
+        _loadCalculations(_searchController.text.trim());
+      }
+    });
+
     final query = _searchController.text.trim();
     final isDesktop = MediaQuery.of(context).size.width >= 720;
 

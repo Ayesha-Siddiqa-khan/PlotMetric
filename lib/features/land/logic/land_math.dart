@@ -82,8 +82,9 @@ class LandWorksheetSummary {
 class LandMath {
   const LandMath._();
 
-  /// Converts centi-Sarsai to floating point square feet (1 centi-Sarsai = 0.25 sq ft)
-  static double centiSarsaiToSquareFeet(int centiSarsai) => centiSarsai * 0.25;
+  /// Converts centi-Sarsai to floating point square feet (1 centi-Sarsai = 0.3025 sq ft in 272.25 standard)
+  static double centiSarsaiToSquareFeet(int centiSarsai) =>
+      (centiSarsai * LandUnits.tenThousandthsSqFtPerCentiSarsai) / 10000.0;
 
   /// Alias for converting centi-Sarsai to LandCompositeArea
   static LandCompositeArea centiSarsaiToCompositeArea(int centiSarsai) =>

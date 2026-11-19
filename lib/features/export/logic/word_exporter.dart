@@ -10,12 +10,20 @@ class WordExporter {
     Calculation calculation, {
     String? subtitle,
     String? metadataLine,
+    String? summaryTitle,
+    String? totalAreaLabel,
+    String? totalDeductionsLabel,
+    String? netBalanceLabel,
   }) {
     return exportCalculations(
       [calculation],
       title: calculation.title.isEmpty ? 'Colony Land Measurement Report' : calculation.title,
       subtitle: subtitle,
       metadataLine: metadataLine,
+      summaryTitle: summaryTitle,
+      totalAreaLabel: totalAreaLabel,
+      totalDeductionsLabel: totalDeductionsLabel,
+      netBalanceLabel: netBalanceLabel,
     );
   }
 
@@ -25,6 +33,10 @@ class WordExporter {
     String title = 'PlotMetric Complete Records Report',
     String? subtitle,
     String? metadataLine,
+    String? summaryTitle,
+    String? totalAreaLabel,
+    String? totalDeductionsLabel,
+    String? netBalanceLabel,
   }) {
     final buffer = StringBuffer();
     final effectiveSubtitle = (subtitle ?? 'LAND MEASUREMENT & COLONY DEDUCTION REPORT').trim();
@@ -216,12 +228,17 @@ table.data-table td {
 ''');
 
       final summary = calc.summary;
+      final effectiveSummaryTitle = _escapeHtml((summaryTitle != null && summaryTitle.trim().isNotEmpty) ? summaryTitle.trim() : 'SUMMARY & NET REMAINING BALANCE');
+      final effectiveAreaLabel = _escapeHtml((totalAreaLabel != null && totalAreaLabel.trim().isNotEmpty) ? totalAreaLabel.trim() : 'Total Colony Area (+)');
+      final effectiveDeductionsLabel = _escapeHtml((totalDeductionsLabel != null && totalDeductionsLabel.trim().isNotEmpty) ? totalDeductionsLabel.trim() : 'Total Deductions (Roads/Parks/Mosque) (-)');
+      final effectiveNetLabel = _escapeHtml((netBalanceLabel != null && netBalanceLabel.trim().isNotEmpty) ? netBalanceLabel.trim() : 'NET REMAINING BALANCE');
+
       buffer.writeln('''
 <div class="summary-box">
-  <div class="summary-title">SUMMARY &amp; NET REMAINING BALANCE</div>
-  <div class="summary-row">Total Colony Area (+): <strong>${summary.totalAddCompositeArea.toDisplayString()}</strong> (${summary.totalAddSqFtFormatted} sq ft)</div>
-  <div class="summary-row">Total Deductions (Roads/Parks/Mosque) (-): <strong>${summary.totalSubtractCompositeArea.toDisplayString()}</strong> (${summary.totalSubtractSqFtFormatted} sq ft)</div>
-  <div class="summary-net">NET REMAINING BALANCE: <strong>${summary.netCompositeArea.toDisplayString()}</strong> (${summary.netSqFtFormatted} sq ft)</div>
+  <div class="summary-title">$effectiveSummaryTitle</div>
+  <div class="summary-row">$effectiveAreaLabel: <strong>${summary.totalAddCompositeArea.toDisplayString()}</strong> (${summary.totalAddSqFtFormatted} sq ft)</div>
+  <div class="summary-row">$effectiveDeductionsLabel: <strong>${summary.totalSubtractCompositeArea.toDisplayString()}</strong> (${summary.totalSubtractSqFtFormatted} sq ft)</div>
+  <div class="summary-net">$effectiveNetLabel: <strong>${summary.netCompositeArea.toDisplayString()}</strong> (${summary.netSqFtFormatted} sq ft)</div>
 </div>
 </div>
 ''');
