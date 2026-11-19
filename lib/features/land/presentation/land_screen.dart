@@ -179,6 +179,9 @@ class _LandScreenState extends ConsumerState<LandScreen> {
     if (!mounted) return;
 
     if (success) {
+      if (_titleController.text != controller.title) {
+        _titleController.text = controller.title;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -474,8 +477,8 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                             controller: _titleController,
                             maxLength: 100,
                             decoration: InputDecoration(
-                              labelText: 'Calculation Title *',
-                              hintText: 'e.g. Ittefaq City',
+                              labelText: 'Calculation Title (Optional)',
+                              hintText: 'e.g. Ittefaq City, Block A (Optional)',
                               counterText: '',
                               prefixIcon: const Icon(Icons.label_outline, size: 20),
                               suffixIcon: controller.isEditingExisting

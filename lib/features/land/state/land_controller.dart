@@ -396,11 +396,9 @@ class LandController extends ChangeNotifier {
 
   Future<bool> saveCalculation({bool saveAsNew = false}) async {
     final trimmedTitle = _title.trim();
-    if (trimmedTitle.isEmpty) {
-      _errorMessage = 'Calculation Title is required to save.';
-      notifyListeners();
-      return false;
-    }
+    final effectiveTitle = trimmedTitle.isNotEmpty
+        ? trimmedTitle
+        : 'Calculation ${DateTimeFormatters.formatDisplayDate(_calculationDate)} ${DateTimeFormatters.formatDisplayTime(_calculationTime)}';
 
     if (hasErrors) {
       _errorMessage = 'Please fix input errors before saving.';
@@ -429,7 +427,7 @@ class LandController extends ChangeNotifier {
         // Update existing atomically
         final updatedCalc = Calculation(
           id: _currentCalculationId,
-          title: trimmedTitle,
+          title: effectiveTitle,
           calculationDate: isoDate,
           calculationTime: storageTime,
           createdAtUtc: _createdAtUtc.isNotEmpty ? _createdAtUtc : nowUtc,
@@ -440,7 +438,7 @@ class LandController extends ChangeNotifier {
       } else {
         // Insert new
         final newCalc = Calculation(
-          title: trimmedTitle,
+          title: effectiveTitle,
           calculationDate: isoDate,
           calculationTime: storageTime,
           createdAtUtc: nowUtc,
@@ -452,6 +450,7 @@ class LandController extends ChangeNotifier {
         _createdAtUtc = nowUtc;
       }
 
+      _title = effectiveTitle;
       _isDirty = false;
       _isLoading = false;
       await _refreshPurposes();

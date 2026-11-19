@@ -222,9 +222,7 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
                             )
                           : _calculations.isEmpty
                               ? _buildEmptyState(query)
-                              : isDesktop
-                                  ? _buildDesktopGrid()
-                                  : _buildMobileList(),
+                              : _buildSingleCardList(),
                 ),
               ],
             ),
@@ -280,30 +278,16 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
     );
   }
 
-  Widget _buildMobileList() {
+  Widget _buildSingleCardList() {
     return ListView.builder(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       itemCount: _calculations.length,
       itemBuilder: (context, index) {
         final calc = _calculations[index];
-        return _buildRecordCard(calc);
-      },
-    );
-  }
-
-  Widget _buildDesktopGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(14),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 2.3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: _calculations.length,
-      itemBuilder: (context, index) {
-        final calc = _calculations[index];
-        return _buildRecordCard(calc);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10.0),
+          child: _buildRecordCard(calc),
+        );
       },
     );
   }
