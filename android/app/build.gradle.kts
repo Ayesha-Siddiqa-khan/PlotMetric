@@ -32,6 +32,18 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    applicationVariants.all {
+        val variantName = name
+        outputs.all {
+            val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output?.outputFileName = if (variantName.contains("release", ignoreCase = true)) {
+                "PlotMetric.apk"
+            } else {
+                "PlotMetric-$variantName.apk"
+            }
+        }
+    }
 }
 
 kotlin {
