@@ -35,12 +35,35 @@ android {
 
     applicationVariants.all {
         val variantName = name
-        outputs.all {
-            val output = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            output?.outputFileName = if (variantName.contains("release", ignoreCase = true)) {
+        outputs.all { output ->
+            val outputImpl = output as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            outputImpl?.outputFileName = if (variantName.contains("release", ignoreCase = true)) {
                 "PlotMetric.apk"
             } else {
                 "PlotMetric-$variantName.apk"
+            }
+        }
+    }
+}
+
+project.afterEvaluate {
+    tasks.matching { it.name.contains("assembleRelease", ignoreCase = true) }.configureEach {
+        doLast {
+            val flutterApkDir = File(project.rootDir.parentFile, "build/app/outputs/flutter-apk")
+            if (flutterApkDir.exists()) {
+                val appRelease = File(flutterApkDir, "app-release.apk")
+                val target = File(flutterApkDir, "PlotMetric.apk")
+                if (appRelease.exists()) {
+                    appRelease.copyTo(target, overwrite = true)
+                }
+            }
+            val apkReleaseDir = File(project.rootDir.parentFile, "build/app/outputs/apk/release")
+            if (apkReleaseDir.exists()) {
+                val appRelease = File(apkReleaseDir, "app-release.apk")
+                val target = File(apkReleaseDir, "PlotMetric.apk")
+                if (appRelease.exists()) {
+                    appRelease.copyTo(target, overwrite = true)
+                }
             }
         }
     }
