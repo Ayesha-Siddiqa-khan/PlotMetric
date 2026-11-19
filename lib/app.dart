@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'data/models/calculation.dart';
+import 'features/approved_land/presentation/approved_land_screen.dart';
 import 'features/calculator/presentation/calculator_screen.dart';
 import 'features/dimensions/presentation/dimension_screen.dart';
 import 'features/land/presentation/land_screen.dart';
@@ -68,7 +69,7 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
       LandScreen(
         onNavigateToRecords: () => _onTabSelected(3),
         onNavigateToDimensions: () => _onTabSelected(1),
-        onNavigateToSettings: () => _onTabSelected(5),
+        onNavigateToSettings: () => _onTabSelected(6),
       ),
       DimensionScreen(
         onNavigateToLand: () => _onTabSelected(0),
@@ -77,10 +78,11 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
       const CalculatorScreen(),
       RecordsScreen(
         onOpenCalculation: _onOpenCalculation,
-        onNavigateToSettings: () => _onTabSelected(5),
+        onNavigateToSettings: () => _onTabSelected(6),
         isActive: _currentIndex == 3,
       ),
       ScanScreen(onNavigateToLand: () => _onTabSelected(0)),
+      ApprovedLandScreen(isActive: _currentIndex == 5),
       SettingsScreen(
         onDataCleared: () {
           ref.read(landControllerProvider).clearToNew();
@@ -155,6 +157,11 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
                   label: Text('Scan'),
                 ),
                 NavigationRailDestination(
+                  icon: Icon(Icons.fact_check_outlined),
+                  selectedIcon: Icon(Icons.fact_check),
+                  label: Text('Approved Land'),
+                ),
+                NavigationRailDestination(
                   icon: Icon(Icons.settings_outlined),
                   selectedIcon: Icon(Icons.settings),
                   label: Text('Settings'),
@@ -208,6 +215,11 @@ class _RootNavigationShellState extends ConsumerState<RootNavigationShell> {
             icon: Icon(Icons.document_scanner_outlined),
             activeIcon: Icon(Icons.document_scanner),
             label: 'Scan',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.fact_check_outlined),
+            activeIcon: Icon(Icons.fact_check),
+            label: 'Approved',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),

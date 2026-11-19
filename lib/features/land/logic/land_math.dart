@@ -82,6 +82,15 @@ class LandWorksheetSummary {
 class LandMath {
   const LandMath._();
 
+  static int? parseAreaInput(String kanal, String marla, String sarsai, {bool allowCarry = false}) {
+    final k = NumberFormatters.parseFixedArea(kanal, 2, maximum: LandUnits.maxKanal * 100);
+    final m = NumberFormatters.parseFixedArea(marla, 2, maximum: allowCarry ? LandUnits.maxKanal * 2000 : 1999);
+    final s = NumberFormatters.parseSarsaiToCenti(sarsai);
+    if (k == null || m == null || s == null) return null;
+    final units = k * LandUnits.sarsaisPerKanal + m * LandUnits.sarsaisPerMarla + s;
+    return units < (LandUnits.maxKanal + 1) * LandUnits.centiSarsaisPerKanal ? units : null;
+  }
+
   /// Converts centi-Sarsai to floating point square feet (1 centi-Sarsai = 0.3025 sq ft in 272.25 standard)
   static double centiSarsaiToSquareFeet(int centiSarsai) =>
       (centiSarsai * LandUnits.tenThousandthsSqFtPerCentiSarsai) / 10000.0;

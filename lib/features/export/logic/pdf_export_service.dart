@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../../core/utils/date_time_formatters.dart';
 import '../../../data/models/calculation.dart';
 import '../../land/logic/land_math.dart';
+import '../../schemes/logic/scheme_report.dart';
 
 /// Pure Dart Black & White A4 PDF Generator for PlotMetric
 /// Adheres strictly to:
@@ -18,6 +19,90 @@ class PdfExportService {
   static const double marginTop = 40.0;
   static const double marginBottom = 40.0;
   static const double contentWidth = a4Width - (marginHorizontal * 2); // 523.28 pt
+
+  static Uint8List generateSchemePdf(SchemeReport report) {
+    final pages = <_PdfPageContent>[];
+    late _PdfPageContent page;
+    var y = 0.0;
+    void newPage() {
+      page = _PdfPageContent();
+      pages.add(page);
+      y = a4Height - marginTop;
+      page.drawText(report.draft ? 'HOUSING SCHEME REPORT - DRAFT' : 'HOUSING SCHEME REPORT',
+        x: marginHorizontal, y: y, fontSize: 15, isBold: true);
+      y -= 28;
+    }
+    String display(Object? value) => value is double ? value.toStringAsFixed(4).replaceFirst(RegExp(r'0+$'), '')
+        : value?.toString() ?? '';
+    List<String> wrap(String text, int width) {
+      if (text.isEmpty) return [''];
+      final lines = <String>[];
+      var rest = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+      while (rest.length > width) {
+        final lastSpace = rest.lastIndexOf(' ', width);
+        final end = lastSpace > 0 ? lastSpace : width;
+        lines.add(rest.substring(0, end));
+        rest = rest.substring(end).trimLeft();
+      }
+      return [...lines, rest];
+    }
+    void row(List<Object?> cells, List<double> widths, {bool heading = false}) {
+      final columns = [for (final (index, cell) in cells.indexed)
+        wrap(display(cell), ((widths[index] - 8) / 4.8).floor().clamp(3, 180))];
+      final lineCount = columns.fold<int>(1, (max, lines) => lines.length > max ? lines.length : max);
+      var position = 0;
+      while (position < lineCount) {
+        if (y < marginBottom + 24) newPage();
+        final capacity = ((y - marginBottom - 8) / 11).floor();
+        final count = (lineCount - position).clamp(1, capacity);
+        final height = count * 11 + 8.0;
+        var x = marginHorizontal;
+        for (var i = 0; i < widths.length; i++) {
+          page.drawRect(x, y - height, widths[i], height, stroke: true, fillGray: heading ? 0.9 : null);
+          for (var line = 0; line < count && line + position < columns[i].length; line++) {
+            page.drawText(columns[i][line + position], x: x + 4, y: y - 12 - line * 11,
+              fontSize: 8, isBold: heading);
+          }
+          x += widths[i];
+        }
+        y -= height;
+        position += count;
+      }
+    }
+    void table(ReportTable table) {
+      if (y < marginBottom + 70) newPage();
+      y -= 20;
+      page.drawText(table.title, x: marginHorizontal, y: y, fontSize: 11, isBold: true);
+      y -= 9;
+      final widths = List.filled(table.headers.length, contentWidth / table.headers.length);
+      row(table.headers, widths, heading: true);
+      for (final cells in table.rows) {
+        if (y < marginBottom + 44) {
+          newPage();
+          row(table.headers, widths, heading: true);
+        }
+        row(cells, widths);
+      }
+    }
+    newPage();
+    for (final detail in report.summary) {
+      row([detail.first, detail.skip(1).whereType<Object>().map(display).join('   ')],
+        [175, contentWidth - 175]);
+    }
+    table(report.schedule);
+    table(report.balances);
+    table(report.documents);
+    if (report.totals.issues.isNotEmpty) {
+      table((title: 'Review Items', headers: ['Item'],
+        rows: [for (final issue in report.totals.issues) [issue]]));
+    }
+    final builder = _PdfLowLevelBuilder();
+    for (final (index, item) in pages.indexed) {
+      item.drawText('Page ${index + 1} of ${pages.length}', x: marginHorizontal, y: 24, fontSize: 8);
+      builder.addPage(item.generateStream());
+    }
+    return builder.build();
+  }
 
   /// Generates a print-ready black & white A4 PDF document for a single Calculation
   static Uint8List generateCalculationPdf(

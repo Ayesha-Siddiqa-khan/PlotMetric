@@ -135,7 +135,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final result = await backupService.restoreFromJson(textController.text.trim(), replaceAll: replaceAll);
         if (result.success) {
           _showNotification(
-            'Restored ${result.calculationsCount} calculation(s) and ${result.entriesCount} measurement entries.',
+            'Restored ${result.calculationsCount} calculation(s), ${result.entriesCount} measurement entries, and ${result.schemesCount} housing scheme(s).',
           );
         } else {
           _showNotification(result.errorMessage ?? 'Restore failed', isSuccess: false);

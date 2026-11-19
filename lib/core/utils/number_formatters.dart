@@ -53,26 +53,27 @@ class NumberFormatters {
   /// Blank string returns 0.
   /// Invalid format or out-of-range returns null.
   static int? parseSarsaiToCenti(String input) {
-    final trimmed = input.trim();
-    if (trimmed.isEmpty) return 0;
+    return parseFixedArea(input, 2, maximum: 899);
+  }
 
-    // Check decimal format
-    final regex = RegExp(r'^\d+(\.\d{1,2})?$');
-    if (!regex.hasMatch(trimmed)) return null;
-
-    final parts = trimmed.split('.');
-    final whole = int.tryParse(parts[0]);
-    if (whole == null) return null;
-
-    int fraction = 0;
-    if (parts.length > 1) {
-      final fracStr = parts[1].padRight(2, '0');
-      fraction = int.tryParse(fracStr) ?? 0;
+  /// Parses decimal text directly into scaled integer units.
+  static int? parseFixedArea(String text, int places, {required int maximum}) {
+    final input = text.trim().replaceAllMapped(
+      RegExp(r'[۰-۹٠-٩]'),
+      (match) => (match[0]!.codeUnitAt(0) % 16).toString(),
+    ).replaceAll('٫', '.').replaceAll('٬', ',');
+    if (input.isEmpty) return 0;
+    if (!RegExp(r'^(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?|\.\d+)$').hasMatch(input)) return null;
+    final parts = input.replaceAll(',', '').split('.');
+    final fraction = parts.length == 2 ? parts[1] : '';
+    final whole = int.tryParse(parts.first.isEmpty ? '0' : parts.first);
+    if (whole == null || fraction.length > places) return null;
+    var scale = 1;
+    for (var i = 0; i < places; i++) {
+      scale *= 10;
     }
-
-    final totalCenti = whole * 100 + fraction;
-    if (totalCenti < 0 || totalCenti > 899) return null;
-
-    return totalCenti;
+    if (whole > maximum ~/ scale) return null;
+    final value = whole * scale + (int.tryParse(fraction.padRight(places, '0')) ?? 0);
+    return value <= maximum ? value : null;
   }
 }

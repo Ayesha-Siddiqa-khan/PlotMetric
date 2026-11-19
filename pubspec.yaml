@@ -39,6 +39,14 @@ dependencies:
   intl: ^0.20.2
   flutter_riverpod: ^3.5.0
   sqflite_common_ffi: ^2.4.7
+  excel: 4.0.6
+  google_mlkit_text_recognition: ^1.0.3
+  tesseract_ocr: ^0.6.0
+  http: ^1.6.0
+  image_picker: ^1.2.4
+  image_cropper: ^12.2.1
+  paddle_ocr_native: ^0.1.1
+  pp_ocr: ^0.5.5
 
 dev_dependencies:
   flutter_test:

@@ -5,6 +5,7 @@ import '../../../core/utils/date_time_formatters.dart';
 import '../../../data/models/calculation.dart';
 import '../../export/presentation/calculation_export_dialog.dart';
 import '../../land/state/land_controller.dart';
+import '../../schemes/presentation/scheme_records_screen.dart';
 
 class RecordsScreen extends ConsumerStatefulWidget {
   final void Function(Calculation calc) onOpenCalculation;
@@ -167,6 +168,13 @@ class _RecordsScreenState extends ConsumerState<RecordsScreen> {
             constraints: const BoxConstraints(maxWidth: 960),
             child: Column(
               children: [
+                Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                  child: Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(
+                    onPressed: () => Navigator.push<void>(context,
+                      MaterialPageRoute(builder: (_) => const SchemeRecordsScreen())),
+                    icon: const Icon(Icons.location_city_outlined),
+                    label: const Text('Housing Schemes'),
+                  ))),
                 // Search Bar
                 Container(
                   padding: const EdgeInsets.all(12),

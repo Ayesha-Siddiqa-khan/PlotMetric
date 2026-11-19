@@ -56,9 +56,9 @@ class MainActivity : FlutterActivity() {
                         }
                     }.start()
                 }
-                "recognizeImageText" -> {
+                "recognizeImageText", "recognizeImageTable" -> {
                     val path = call.argument<String>("filePath") ?: ""
-                    recognizeImageText(File(path), result)
+                    recognizeImageText(File(path), call.method == "recognizeImageTable", result)
                 }
                 "shareText" -> {
                     val text = call.argument<String>("text") ?: ""
@@ -112,11 +112,15 @@ class MainActivity : FlutterActivity() {
                 "pickImage" -> {
                     try {
                         pendingPickResult = result
+                        val csvOnly = call.argument<Boolean>("csvOnly") == true
                         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                             type = "*/*"
-                            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "text/plain", "text/csv"))
+                            putExtra(Intent.EXTRA_MIME_TYPES, if (csvOnly)
+                                arrayOf("text/csv", "text/plain", "application/csv", "application/vnd.ms-excel", "application/octet-stream")
+                            else arrayOf("image/*", "text/plain", "text/csv"))
                         }
-                        startActivityForResult(Intent.createChooser(intent, "Select Image or Document"), REQUEST_CODE_PICK_IMAGE)
+                        startActivityForResult(Intent.createChooser(intent,
+                            if (csvOnly) "Select office register CSV" else "Select Image or Document"), REQUEST_CODE_PICK_IMAGE)
                     } catch (e: Exception) {
                         pendingPickResult = null
                         result.error("PICK_ERROR", e.message, null)
@@ -284,14 +288,14 @@ class MainActivity : FlutterActivity() {
         return false
     }
 
-    private fun recognizeImageText(file: File, result: MethodChannel.Result) {
+    private fun recognizeImageText(file: File, table: Boolean, result: MethodChannel.Result) {
         try {
             val image = InputImage.fromFilePath(this, Uri.fromFile(file))
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             recognizer.process(image).addOnCompleteListener { task ->
                 try {
                     if (task.isSuccessful) {
-                        result.success(readTextRows(task.result))
+                        result.success(if (table) readTableWords(task.result) else readTextRows(task.result))
                     } else {
                         Log.w("PlotMetricOCR", "Image recognition failed", task.exception)
                         result.error("OCR_ERROR", task.exception?.message, null)
@@ -303,6 +307,27 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             Log.w("PlotMetricOCR", "Could not start image recognition", e)
             result.error("OCR_ERROR", e.message, null)
+        }
+    }
+
+    private fun readTableWords(text: Text): List<Map<String, Any>> {
+        val lines = text.textBlocks.flatMap { it.lines }
+        val edges = lines.mapNotNull { line ->
+            line.cornerPoints?.takeIf { it.size >= 2 }?.let { it[0] to it[1] }
+        }
+        val width = edges.sumOf { (left, right) -> right.x - left.x }
+        val slope = if (width > 0) edges.sumOf { (left, right) -> right.y - left.y }.toDouble() / width else 0.0
+        return lines.flatMap { line ->
+            line.elements.mapNotNull { word ->
+                word.boundingBox?.let { box ->
+                    mapOf(
+                        "text" to word.text,
+                        "x" to box.exactCenterX().toDouble(),
+                        "y" to box.exactCenterY() - slope * box.exactCenterX(),
+                        "height" to box.height()
+                    )
+                }
+            }
         }
     }
 

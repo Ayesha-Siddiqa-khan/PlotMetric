@@ -11,13 +11,37 @@ import '../logic/word_exporter.dart';
 
 class CalculationExportDialog extends StatefulWidget {
   final Calculation calculation;
+  final String subtitle, summaryTitle, totalAreaLabel, deductionsLabel, netLabel;
 
-  const CalculationExportDialog({super.key, required this.calculation});
+  const CalculationExportDialog({
+    super.key,
+    required this.calculation,
+    this.subtitle = 'LAND MEASUREMENT & COLONY DEDUCTION REPORT',
+    this.summaryTitle = 'SUMMARY & NET REMAINING BALANCE',
+    this.totalAreaLabel = 'Total Colony Area (+)',
+    this.deductionsLabel = 'Total Deductions (Roads/Parks/Mosque) (-)',
+    this.netLabel = 'NET REMAINING BALANCE',
+  });
 
-  static Future<void> show(BuildContext context, Calculation calculation) {
+  static Future<void> show(
+    BuildContext context,
+    Calculation calculation, {
+    String subtitle = 'LAND MEASUREMENT & COLONY DEDUCTION REPORT',
+    String summaryTitle = 'SUMMARY & NET REMAINING BALANCE',
+    String totalAreaLabel = 'Total Colony Area (+)',
+    String deductionsLabel = 'Total Deductions (Roads/Parks/Mosque) (-)',
+    String netLabel = 'NET REMAINING BALANCE',
+  }) {
     return showDialog(
       context: context,
-      builder: (ctx) => CalculationExportDialog(calculation: calculation),
+      builder: (ctx) => CalculationExportDialog(
+        calculation: calculation,
+        subtitle: subtitle,
+        summaryTitle: summaryTitle,
+        totalAreaLabel: totalAreaLabel,
+        deductionsLabel: deductionsLabel,
+        netLabel: netLabel,
+      ),
     );
   }
 
@@ -41,15 +65,15 @@ class _CalculationExportDialogState extends State<CalculationExportDialog> {
   @override
   void initState() {
     super.initState();
-    _subtitleController = TextEditingController(text: 'LAND MEASUREMENT & COLONY DEDUCTION REPORT');
+    _subtitleController = TextEditingController(text: widget.subtitle);
     final nowStr = DateTime.now().toLocal().toString().split('.').first;
     _metadataController = TextEditingController(
       text: 'Generated on: $nowStr | 1 Kanal = 20 Marlas, 1 Marla = 9 Sarsais (272.25 sq ft)',
     );
-    _summaryTitleController = TextEditingController(text: 'SUMMARY & NET REMAINING BALANCE');
-    _totalAreaLabelController = TextEditingController(text: 'Total Colony Area (+)');
-    _totalDeductionsLabelController = TextEditingController(text: 'Total Deductions (Roads/Parks/Mosque) (-)');
-    _netBalanceLabelController = TextEditingController(text: 'NET REMAINING BALANCE');
+    _summaryTitleController = TextEditingController(text: widget.summaryTitle);
+    _totalAreaLabelController = TextEditingController(text: widget.totalAreaLabel);
+    _totalDeductionsLabelController = TextEditingController(text: widget.deductionsLabel);
+    _netBalanceLabelController = TextEditingController(text: widget.netLabel);
   }
 
   @override

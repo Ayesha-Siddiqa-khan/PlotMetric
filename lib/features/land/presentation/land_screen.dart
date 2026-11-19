@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/number_formatters.dart';
 import '../../export/presentation/calculation_export_dialog.dart';
+import '../../schemes/presentation/scheme_screen.dart';
 import '../../info/presentation/land_info_screen.dart';
 import '../state/land_controller.dart';
+import '../logic/land_math.dart';
 import 'widgets/land_summary.dart';
 import 'widgets/measurement_sheet.dart';
 
@@ -241,7 +242,7 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                   Expanded(
                     child: TextField(
                       controller: kanalCtrl,
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: const InputDecoration(
                         labelText: 'Kanal (کنال)',
                         hintText: '0',
@@ -259,7 +260,7 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                   Expanded(
                     child: TextField(
                       controller: marlaCtrl,
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: const InputDecoration(
                         labelText: 'Marla (مرلہ)',
                         hintText: '0',
@@ -303,15 +304,18 @@ class _LandScreenState extends ConsumerState<LandScreen> {
           ),
           ElevatedButton.icon(
             onPressed: () {
-              final k = int.tryParse(kanalCtrl.text) ?? 0;
-              final m = int.tryParse(marlaCtrl.text) ?? 0;
-              final s = NumberFormatters.parseSarsaiToCenti(sarsaiCtrl.text) ?? 0;
+              final units = LandMath.parseAreaInput(kanalCtrl.text, marlaCtrl.text, sarsaiCtrl.text, allowCarry: true);
+              if (units == null) {
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Enter valid land measurements.')));
+                return;
+              }
+              final area = LandMath.centiSarsaiToComposite(units);
 
               ref.read(landControllerProvider).loadColonyDeductionTemplate(
                     title: titleCtrl.text,
-                    kanal: k,
-                    marla: m,
-                    sarsaiCenti: s,
+                    kanal: area.kanal,
+                    marla: area.marla,
+                    sarsaiCenti: area.sarsaiCenti,
                   );
               _titleController.text = titleCtrl.text;
               Navigator.pop(ctx);
@@ -526,6 +530,12 @@ class _LandScreenState extends ConsumerState<LandScreen> {
                     ),
                     const SizedBox(height: 12),
                     // Single Continuous Worksheet Panel
+                    OutlinedButton.icon(
+                      onPressed: () => SchemeScreen.open(context),
+                      icon: const Icon(Icons.location_city_outlined),
+                      label: const Text('Housing Scheme'),
+                    ),
+                    const SizedBox(height: 12),
                     MeasurementSheetWidget(
                       rows: controller.rows,
                       purposeSuggestions: controller.purposeSuggestions,

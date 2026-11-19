@@ -10,6 +10,10 @@ class ParsedMeasurementItem {
   int marla;
   int sarsaiCenti;
   final String? sourceSquareFeet;
+  late String inputKanal = kanal == 0 ? '' : '$kanal';
+  late String inputMarla = marla == 0 ? '' : '$marla';
+  late String inputSarsai = sarsaiCenti == 0 ? '' : NumberFormatters.formatSarsaiFromCenti(sarsaiCenti);
+  bool invalidInput = false;
 
   ParsedMeasurementItem({
     required this.operation,
@@ -22,6 +26,21 @@ class ParsedMeasurementItem {
 
   bool get isSubtract => operation == EntryOperation.subtract;
 
+  void updateArea(int column, String text) {
+    switch (column) {
+      case 0: inputKanal = text;
+      case 1: inputMarla = text;
+      case 2: inputSarsai = text;
+    }
+    final units = LandMath.parseAreaInput(inputKanal, inputMarla, inputSarsai);
+    invalidInput = units == null;
+    if (units == null) return;
+    final area = LandMath.centiSarsaiToComposite(units);
+    kanal = area.kanal;
+    marla = area.marla;
+    sarsaiCenti = area.sarsaiCenti;
+  }
+
   int get centiSarsai => LandMath.rowToCentiSarsai(
         kanal: kanal,
         marla: marla,
@@ -29,7 +48,7 @@ class ParsedMeasurementItem {
       );
 
   String get sqFtFormatted => NumberFormatters.formatSquareFeetFromTenThousandths(
-        LandMath.rowUnitsToSqFtTenThousandths(centiSarsai, isSubtract: isSubtract),
+        LandMath.rowUnitsToSqFtTenThousandths(centiSarsai),
       );
 }
 
@@ -148,12 +167,11 @@ class LandDocumentParser {
       operation = EntryOperation.subtract;
     }
 
-    // 3. Extract Kanal, Marla, Sarsai
-    int kanal = 0;
-    int marla = 0;
-    int sarsaiCenti = 0;
-
-    if (squareFeet != null) {
+    final hasLabeledUnits = RegExp(
+      r'\d\s*(?:kanals?|marlas?|sarsai|sarsaye|[kms])\b|\d\s*(?:کنال|مرلہ|سرسائی)',
+      caseSensitive: false,
+    ).hasMatch(line.replaceAll(_squareFeet, ''));
+    if (squareFeet != null && compact == null && !hasLabeledUnits) {
       const unit = LandUnits.tenThousandthsSqFtPerCentiSarsai;
       const maxSquareFeet = (LandUnits.maxKanal + 1) * LandUnits.centiSarsaisPerKanal * unit ~/ 10000;
       final whole = int.tryParse(squareFeet.group(1)!.replaceAll(',', ''));
@@ -172,107 +190,62 @@ class LandDocumentParser {
       );
     }
 
+    var k = '', m = '', s = '';
     if (compact != null) {
       for (final match in _compactUnits.allMatches(line)) {
-        final amount = int.tryParse(match.group(2)!);
-        if (amount == null) return null;
+        final amount = '${match.group(2)}${match.group(3) ?? ''}';
         switch (match.group(1)!.toLowerCase()) {
           case 'k':
-            kanal = amount;
+            k = amount;
           case 'm':
-            marla = amount;
+            m = amount;
           case 's':
             final fraction = match.group(4);
             if (fraction == null) {
-              sarsaiCenti = NumberFormatters.parseSarsaiToCenti(
-                '$amount${match.group(3) ?? ''}',
-              ) ?? 0;
+              s = amount;
             } else {
+              final whole = int.tryParse(amount);
               final numerator = int.tryParse(fraction);
               final denominator = int.tryParse(match.group(5)!);
-              if (amount > 8 || numerator == null || numerator > 99 ||
+              if (whole == null || whole > 8 || numerator == null || numerator > 99 ||
                   denominator == null || denominator == 0 || numerator >= denominator) {
                 return null;
               }
-              sarsaiCenti = amount * 100 + (100 * numerator + denominator ~/ 2) ~/ denominator;
+              s = NumberFormatters.formatSarsaiFromCenti(whole * 100 +
+                  (100 * numerator + denominator ~/ 2) ~/ denominator);
             }
         }
       }
-      if (kanal > LandUnits.maxKanal || marla > LandUnits.maxMarla ||
-          sarsaiCenti > LandUnits.maxSarsaiCenti) {
-        return null;
-      }
-      return ParsedMeasurementItem(
-        operation: operation,
-        purpose: purpose,
-        kanal: kanal,
-        marla: marla,
-        sarsaiCenti: sarsaiCenti,
-      );
-    }
-
-    // Pattern A: "X Kanal Y Marla Z Sarsai" or "X K Y M Z S" or Urdu "X کنال Y مرلہ Z سرسائی"
-    final kanalMatch = RegExp(r'(\d+)\s*(?:kanal|kanals|k|کنال)(?:\b|\s|$|[:\-,])', caseSensitive: false)
-        .firstMatch(line);
-    if (kanalMatch != null) {
-      kanal = int.tryParse(kanalMatch.group(1)!) ?? 0;
-    }
-
-    final marlaMatch = RegExp(r'(\d+)\s*(?:marla|marlas|m|مرلہ)(?:\b|\s|$|[:\-,])', caseSensitive: false)
-        .firstMatch(line);
-    if (marlaMatch != null) {
-      marla = int.tryParse(marlaMatch.group(1)!) ?? 0;
-    }
-
-    final sarsaiMatch = RegExp(
-      r'(\d+(?:\.\d{1,2})?)\s*(?:sarsai|sarsaye|s|سرسائی)(?:\b|\s|$|[:\-,])',
-      caseSensitive: false,
-    ).firstMatch(line);
-    if (sarsaiMatch != null) {
-      sarsaiCenti = NumberFormatters.parseSarsaiToCenti(sarsaiMatch.group(1)!) ?? 0;
-    }
-
-    // Pattern B: Delimited numbers like "20-5-2" or "20 5 2" or "500-0-0"
-    if (kanal == 0 && marla == 0 && sarsaiCenti == 0) {
-      final numbersMatch = RegExp(r'(\d+)[-\s/]+(\d+)(?:[-\s/]+(\d+(?:\.\d{1,2})?))?')
-          .firstMatch(line);
-      if (numbersMatch != null) {
-        kanal = int.tryParse(numbersMatch.group(1)!) ?? 0;
-        marla = int.tryParse(numbersMatch.group(2)!) ?? 0;
-        if (numbersMatch.group(3) != null) {
-          sarsaiCenti =
-              NumberFormatters.parseSarsaiToCenti(numbersMatch.group(3)!) ?? 0;
-        }
+    } else {
+      const number = r'(?<![\d.])(\d+(?:\.\d{1,2})?)';
+      String labeled(String units) => RegExp(
+        '$number\\s*(?:$units)' r'(?:\b|\s|$|[:\-,])',
+        caseSensitive: false,
+      ).firstMatch(line)?.group(1) ?? '';
+      k = labeled('kanals?|k|کنال');
+      m = labeled('marlas?|m|مرلہ');
+      s = labeled('sarsai|sarsaye|s|سرسائی');
+      if (k.isEmpty && m.isEmpty && s.isEmpty) {
+        if (RegExp(r'\d+(?:\.\d+)?').allMatches(line).length > 3) return null;
+        final values = RegExp(r'(?<![\d.])(\d+(?:\.\d{1,2})?)[-\s/]+(\d+(?:\.\d{1,2})?)(?:[-\s/]+(\d+(?:\.\d{1,2})?))?(?![\d.])').firstMatch(line);
+        if (values == null) return null;
+        k = values.group(1)!;
+        m = values.group(2)!;
+        s = values.group(3) ?? '';
       }
     }
-
-    // Pattern C: Single number with Kanal or Marla (e.g. "500 Kanal")
-    if (kanal == 0 && marla == 0 && sarsaiCenti == 0) {
-      final singleKanal = RegExp(r'\b(\d+)\s*(?:kanal|kanals|k)\b', caseSensitive: false)
-          .firstMatch(line);
-      if (singleKanal != null) {
-        kanal = int.tryParse(singleKanal.group(1)!) ?? 0;
-      }
-    }
-
-    // Clamp / bounds check
-    if (kanal > LandUnits.maxKanal) kanal = LandUnits.maxKanal;
-    if (marla > LandUnits.maxMarla) marla = LandUnits.maxMarla;
-    if (sarsaiCenti > LandUnits.maxSarsaiCenti) sarsaiCenti = LandUnits.maxSarsaiCenti;
-
-    if (kanalMatch == null && marlaMatch == null && sarsaiMatch == null &&
-        kanal == 0 && marla == 0 && sarsaiCenti == 0) {
-      return null; // Not a measurement line
-    }
-
+    final units = LandMath.parseAreaInput(k, m, s, allowCarry: true);
+    if (units == null) return null;
+    final area = LandMath.centiSarsaiToComposite(units);
     return ParsedMeasurementItem(
       operation: operation,
       purpose: purpose,
-      kanal: kanal,
-      marla: marla,
-      sarsaiCenti: sarsaiCenti,
+      kanal: area.kanal,
+      marla: area.marla,
+      sarsaiCenti: area.sarsaiCenti,
     );
   }
+
 
   static final _squareFeet = RegExp(
     r'(?<![\d.,])\b(\d+(?:,\d{3})*)(?:\.(\d{1,4}))?\s*(?:s\s*f\s*t|sq\.?\s*(?:ft|feet)|ft[²2]|square feet)\b',

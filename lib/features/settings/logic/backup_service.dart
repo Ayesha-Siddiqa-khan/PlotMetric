@@ -1,17 +1,24 @@
 import 'dart:convert';
+import '../../../core/constants/scheme_catalog.dart';
 import '../../../data/local/app_database.dart';
 import '../../../data/repositories/calculation_repository.dart';
+import '../../schemes/logic/scheme.dart';
+import '../../approved_land/logic/approved_land.dart';
+import '../../approved_land/logic/approved_land_repository.dart';
+import '../../schemes/logic/scheme_repository.dart';
 
 class BackupRestoreResult {
   final bool success;
   final int calculationsCount;
   final int entriesCount;
+  final int schemesCount;
   final String? errorMessage;
 
   const BackupRestoreResult({
     required this.success,
     this.calculationsCount = 0,
     this.entriesCount = 0,
+    this.schemesCount = 0,
     this.errorMessage,
   });
 }
@@ -29,10 +36,16 @@ class BackupService {
   /// Serializes all calculations and entries to a structured JSON string
   Future<String> exportBackupJson() async {
     final calculations = await _repository.getAllCalculations();
+    final schemeRepository = SchemeRepository(database: _dbProvider);
+    final schemes = await schemeRepository.all();
 
     final backupMap = {
       'app': 'PlotMetric',
-      'format_version': 1,
+      'format_version': 2,
+      'housing_schemes': schemes.map((scheme) => scheme.toJson()).toList(),
+      'scheme_register': await schemeRepository.names(),
+      'scheme_register_catalog': 1,
+      'approved_land': (await ApprovedLandRepository(database: _dbProvider).all()).map((entry) => entry.toJson()).toList(),
       'exported_at_utc': DateTime.now().toUtc().toIso8601String(),
       'total_calculations': calculations.length,
       'calculations': calculations.map((calc) {
@@ -85,6 +98,14 @@ class BackupService {
           errorMessage: 'Invalid calculations array in backup file.',
         );
       }
+      final version = decoded['format_version'] ?? 1;
+      if (version != 1 && version != 2) {
+        throw const FormatException('Unsupported backup version.');
+      }
+      final schemes = version == 1 ? <HousingScheme>[] : (decoded['housing_schemes'] as List)
+          .cast<Map<String, dynamic>>().map(HousingScheme.fromJson).toList();
+      final approved = (decoded['approved_land'] as List?)?.cast<Map<String, dynamic>>().map(ApprovedLandEntry.fromJson).toList();
+      final names = version == 1 ? <String>[] : (decoded['scheme_register'] as List? ?? []).cast<String>();
 
       final db = await _dbProvider.database;
       int restoredCalcs = 0;
@@ -94,7 +115,25 @@ class BackupService {
         if (replaceAll) {
           await txn.delete('measurement_entries');
           await txn.delete('calculations');
+          if (version == 2) {
+            await txn.delete('housing_schemes');
+            await txn.delete('scheme_register');
+            if (decoded['scheme_register_catalog'] == null) {
+              await SchemeRepository.writeNames(txn, SchemeCatalog.colonies);
+            }
+          }
         }
+        for (final scheme in schemes) {
+          await SchemeRepository.write(txn, scheme);
+        }
+        if (approved != null) {
+          if (replaceAll) await txn.delete('approved_land');
+          for (final entry in approved) {
+            await txn.insert('approved_land', entry.toDb());
+          }
+          await ApprovedLandRepository.markSeeded(txn);
+        }
+        await SchemeRepository.writeNames(txn, names);
 
         for (final item in rawCalculations) {
           if (item is! Map<String, dynamic>) continue;
@@ -138,6 +177,7 @@ class BackupService {
         success: true,
         calculationsCount: restoredCalcs,
         entriesCount: restoredEntries,
+        schemesCount: schemes.length,
       );
     } catch (e) {
       return BackupRestoreResult(
@@ -153,12 +193,16 @@ class BackupService {
     return await db.transaction<int>((txn) async {
       final entriesDeleted = await txn.delete('measurement_entries');
       final calcsDeleted = await txn.delete('calculations');
+      final schemesDeleted = await txn.delete('housing_schemes');
+      await txn.delete('approved_land');
+      // The seeded flag stays, so the printed register is not re-added after a clear.
+      await txn.delete('scheme_register');
       try {
         await txn.rawDelete("DELETE FROM sqlite_sequence WHERE name IN ('calculations', 'measurement_entries')");
       } catch (_) {
         // Ignored if sqlite_sequence does not exist
       }
-      return calcsDeleted + entriesDeleted;
+      return calcsDeleted + entriesDeleted + schemesDeleted;
     });
   }
 }

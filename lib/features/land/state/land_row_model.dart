@@ -90,50 +90,22 @@ class LandRowModel {
   bool get hasError => kanalError != null || marlaError != null || sarsaiError != null;
 
   void validate() {
-    // Validate Kanal
-    final kanalText = kanalController.text.trim();
-    if (kanalText.isEmpty) {
-      kanal = 0;
-      kanalError = null;
-    } else {
-      final val = int.tryParse(kanalText);
-      if (val == null || val < 0 || val > LandUnits.maxKanal) {
-        kanalError = '0..1M';
-      } else {
-        kanal = val;
-        kanalError = null;
-      }
+    final k = kanalController.text;
+    final m = marlaController.text;
+    final s = sarsaiController.text;
+    kanalError = NumberFormatters.parseFixedArea(k, 2, maximum: LandUnits.maxKanal * 100) == null ? '0..1M' : null;
+    marlaError = NumberFormatters.parseFixedArea(m, 2, maximum: 1999) == null ? '0..19.99' : null;
+    sarsaiError = NumberFormatters.parseSarsaiToCenti(s) == null ? '0..8.99' : null;
+    if (hasError) return;
+    final units = LandMath.parseAreaInput(k, m, s);
+    if (units == null) {
+      kanalError = 'Area too large';
+      return;
     }
-
-    // Validate Marla
-    final marlaText = marlaController.text.trim();
-    if (marlaText.isEmpty) {
-      marla = 0;
-      marlaError = null;
-    } else {
-      final val = int.tryParse(marlaText);
-      if (val == null || val < 0 || val > LandUnits.maxMarla) {
-        marlaError = '0..19';
-      } else {
-        marla = val;
-        marlaError = null;
-      }
-    }
-
-    // Validate Sarsai
-    final sarsaiText = sarsaiController.text.trim();
-    if (sarsaiText.isEmpty) {
-      sarsaiCenti = 0;
-      sarsaiError = null;
-    } else {
-      final val = NumberFormatters.parseSarsaiToCenti(sarsaiText);
-      if (val == null) {
-        sarsaiError = '0..8.99';
-      } else {
-        sarsaiCenti = val;
-        sarsaiError = null;
-      }
-    }
+    final area = LandMath.centiSarsaiToComposite(units);
+    kanal = area.kanal;
+    marla = area.marla;
+    sarsaiCenti = area.sarsaiCenti;
   }
 
   void dispose() {

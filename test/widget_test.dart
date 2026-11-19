@@ -130,18 +130,12 @@ void main() {
     await tester.tap(find.byIcon(Icons.document_scanner_outlined));
     await tester.pumpAndSettle();
 
-    // Verify Functional OCR Scanner interface
-    expect(find.text('OCR & Document Scanner'), findsOneWidget);
-    expect(find.text('Sample Plan'), findsOneWidget);
-    expect(find.text('Load Scheme'), findsOneWidget);
-    expect(find.text('Extract Measurements'), findsOneWidget);
-
-    // Tap 'Load Scheme'
-    await tester.tap(find.text('Load Scheme'));
-    await tester.pumpAndSettle();
-
-    // Verify Mandatory Review section appears with parsed entries
-    expect(find.text('Mandatory Review & Correction'), findsOneWidget);
-    expect(find.text('Send to Land Calculator'), findsOneWidget);
+    // The Scan tab is a single page: scan, review, save and export.
+    expect(find.text('Scan area schedule'), findsOneWidget);
+    expect(find.text('Choose image'), findsOneWidget);
+    expect(find.text('Take photo'), findsOneWidget);
+    expect(find.text('Demo Data'), findsNothing);
+    expect(find.text('Sample schedule'), findsOneWidget);
+    expect(find.text('Scheme name'), findsOneWidget);
   });
 }

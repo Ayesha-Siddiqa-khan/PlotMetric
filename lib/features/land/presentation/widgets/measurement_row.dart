@@ -165,8 +165,7 @@ class MeasurementRowWidget extends StatelessWidget {
       child: TextFormField(
         controller: row.kanalController,
         focusNode: row.kanalFocus,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
         textInputAction: TextInputAction.next,
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: width < 60 ? 13 : 14, fontWeight: FontWeight.w600),
@@ -198,8 +197,7 @@ class MeasurementRowWidget extends StatelessWidget {
       child: TextFormField(
         controller: row.marlaController,
         focusNode: row.marlaFocus,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
         textInputAction: TextInputAction.next,
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: width < 50 ? 13 : 14, fontWeight: FontWeight.w600),
