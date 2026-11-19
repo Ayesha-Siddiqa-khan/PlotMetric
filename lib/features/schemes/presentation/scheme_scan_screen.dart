@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -11,6 +12,11 @@ import '../../export/presentation/calculation_export_dialog.dart';
 import '../../land/logic/land_math.dart';
 import '../../approved_land/logic/approved_land.dart';
 import '../../approved_land/logic/approved_land_repository.dart';
+import '../../ocr/ocr_models.dart';
+import '../../ocr/ocr_registry.dart';
+import '../../ocr/ocr_table.dart';
+import '../../ocr/presentation/ocr_compare_screen.dart';
+import '../../ocr/presentation/ocr_panel.dart';
 import '../logic/scheme.dart';
 import '../logic/scheme_repository.dart';
 import '../logic/scheme_scan.dart';
@@ -27,6 +33,7 @@ class SchemeScanScreen extends StatefulWidget {
     this.embedded = false,
     this.tab = false,
     this.approved,
+    this.ocrRegistry,
   });
   final String? initialImage;
   final SchemeRow? existingGross;
@@ -39,6 +46,9 @@ class SchemeScanScreen extends StatefulWidget {
 
   /// The Approved Land row this scan belongs to; its name and total area are prefilled.
   final ApprovedLandEntry? approved;
+
+  /// Overrides the engines offered on this platform (used by tests).
+  final OcrRegistry? ocrRegistry;
 
   @override
   State<SchemeScanScreen> createState() => _SchemeScanScreenState();
@@ -55,6 +65,15 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
   final _tMarla = TextEditingController();
   final _tSarsai = TextEditingController();
   final _repo = SchemeRepository();
+  final _panelKey = GlobalKey<OcrPanelState>();
+  String? _cropPath;
+  Uint8List? _cropBytes;
+  CropResult? _cropMeta;
+  String? _originalCopy;
+  String? _activeEngineId;
+  bool _reviewed = false;
+  Map<String, String> _cellSources = {};
+  Map<String, dynamic>? _provenance;
   final _approvedRepo = ApprovedLandRepository();
   ApprovedLandEntry? _approved;
   HousingScheme? _saved;
@@ -93,6 +112,9 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
         _crop = scheme.scheduleCrop;
         _name = scheme.name;
         _nameReset++;
+        _provenance = scheme.ocrProvenance;
+        _reviewed = scheme.reviewed;
+        _activeEngineId = scheme.ocrProvenance?['engineId'] as String?;
         _tKanal.text = scheme.transferredKanal;
         _tMarla.text = scheme.transferredMarla;
         _tSarsai.text = scheme.transferredSarsai;
@@ -175,15 +197,22 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
       final scheme = (_saved ?? HousingScheme())
         ..name = _name.trim()
         ..selectedOnly = true
-        ..reviewed = false
+        ..reviewed = _reviewed
         ..scheduleCrop = _crop
         ..transferredKanal = _tKanal.text.trim()
         ..transferredMarla = _tMarla.text.trim()
         ..transferredSarsai = _tSarsai.text.trim();
-      scheme.rows.clear();
-      for (final row in selected) {
-        scheme.rows.add(SchemeRow.fromJson(row.toJson()..['id'] = scheme.nextRowId()));
+      // Recorded transfers point at their rows, so a re-scan never replaces rows that have any.
+      final keepRows = scheme.evidence.isNotEmpty;
+      if (keepRows) {
+        _toast('This scheme has recorded transfers, so its worksheet rows were kept. The new scan is saved beside them.');
+      } else {
+        scheme.rows.clear();
+        for (final row in selected) {
+          scheme.rows.add(SchemeRow.fromJson(row.toJson()..['id'] = scheme.nextRowId()));
+        }
       }
+      scheme.ocrProvenance = _buildProvenance() ?? scheme.ocrProvenance;
       scheme.scanRows
         ..clear()
         ..addAll(_rows.map((row) => SchemeRow.fromJson(row.toJson())));
@@ -270,7 +299,112 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
     _dirty = true;
   });
 
+  /// Keeps a copy of the original photo (not just the crop) with the app's own data.
+  Future<String?> _preserveOriginal(String path) async {
+    try {
+      final base = Platform.isWindows
+          ? '${Platform.environment['LOCALAPPDATA'] ?? '.'}\\PlotMetric\\ocr_originals'
+          : '${(await NativePlatformHelper.androidDeviceInfo())?.documentsDir ?? Directory.systemTemp.path}/ocr_originals';
+      await Directory(base).create(recursive: true);
+      final name = '${DateTime.now().millisecondsSinceEpoch}_${path.split(RegExp(r'[\\/]')).last}';
+      final target = '$base${Platform.pathSeparator}$name';
+      await File(path).copy(target);
+      return target;
+    } catch (_) {
+      return null; // The scan still works; the original just is not archived.
+    }
+  }
+
+  void _renumber(List<SchemeRow> rows) {
+    _rows
+      ..clear()
+      ..addAll([for (final (i, row) in rows.indexed) SchemeRow.fromJson(row.toJson()..['id'] = i + 1)]);
+    _next = rows.length + 1;
+    _checked.clear();
+  }
+
+  void _useRun(OcrRun run) => setState(() {
+    _reviewed = false;
+    _renumber(rowsFromRun(run));
+    _activeEngineId = run.engineId;
+    _cellSources = {};
+    _dirty = true;
+    _message = _rows.isEmpty
+        ? 'No table rows could be reconstructed from ${run.engineName}. Try another engine, a closer crop, or add rows by hand.'
+        : 'Read by ${run.engineName}. Check every row marked "Needs review"; nothing is confirmed automatically.';
+  });
+
+  void _useCompared(OcrCompareResult result) => setState(() {
+    _reviewed = false;
+    _renumber(result.rows);
+    _activeEngineId = result.baseEngineId;
+    _cellSources = result.sources;
+    _dirty = true;
+    _message = 'Using the combined table from the comparison. Each cell remembers which engine it came from.';
+  });
+
+  void _resetOcr() => setState(() {
+    _rows.clear();
+    _checked.clear();
+    _cellSources = {};
+    _activeEngineId = null;
+    _message = null;
+  });
+
+  Map<String, dynamic>? _buildProvenance() {
+    final runs = _panelKey.currentState?.runs ?? const <OcrRun>[];
+    if (_cropMeta == null && runs.isEmpty) return _provenance;
+    final active = runs.where((run) => run.engineId == _activeEngineId).firstOrNull;
+    final meta = _cropMeta;
+    final Object? crop;
+    if (meta == null) {
+      crop = _provenance == null ? null : _provenance!['crop'];
+    } else {
+      crop = {
+        'originalCopy': _originalCopy,
+        'rect': meta.cropRect,
+        'rotationTurns': meta.rotationTurns,
+        'adjustments': meta.adjustments,
+      };
+    }
+    return {
+      'engineId': _activeEngineId,
+      'engineName': active?.engineName,
+      'engineVersion': active?.engineVersion,
+      'cellSources': _cellSources,
+      'crop': crop,
+      'runs': [for (final run in runs) run.toJson()],
+      'savedAtUtc': DateTime.now().toUtc().toIso8601String(),
+    };
+  }
+
+  /// Marks the schedule reviewed only when nothing is left to check; otherwise says what is.
+  Future<void> _markReviewed() async {
+    final scheme = HousingScheme()
+      ..name = _name
+      ..selectedOnly = true;
+    scheme.rows.addAll(_rows.map((row) => SchemeRow.fromJson(row.toJson())));
+    final issues = scheme.scheduleIssues;
+    if (issues.isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('The schedule is not ready to mark as reviewed'),
+          content: SingleChildScrollView(child: Text(issues.map((issue) => '• $issue').join('\n'))),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('OK'))],
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _reviewed = true;
+      _dirty = true;
+    });
+    _toast('Schedule marked as reviewed. Save to keep it.');
+  }
+
   void _newScan() => setState(() {
+    _reviewed = false;
     _rows.clear();
     _checked.clear();
     _crop = null;
@@ -365,43 +499,31 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
           : await CropImageScreen.open(context, imagePath);
       if (crop == null || !mounted) return;
       final source = base64Encode(crop.preview);
-      setState(() {
-        _crop = source;
-        _rows.clear();
-        _checked.clear();
-        _message = null;
-      });
-      if (!NativePlatformHelper.canRecognizeTable) {
-        setState(
-          () => _message =
-              'Enter the rows from the crop. Automatic table recognition is available on Android and Windows.',
-        );
-        return;
+      // The confirmed crop is saved once; every OCR engine reads this same file.
+      final folder = await Directory.systemTemp.createTemp('plotmetric_scan_');
+      final file = await File('${folder.path}${Platform.pathSeparator}crop.png').writeAsBytes(crop.scan);
+      final preserved = await _preserveOriginal(crop.originalPath);
+      if (_cropPath != null) {
+        try {
+          File(_cropPath!).parent.deleteSync(recursive: true);
+        } catch (_) {}
       }
-      final words = await CropImageScreen.withScanFile(
-        crop.scan,
-        NativePlatformHelper.recognizeImageTable,
-      );
-      final parsed = SchemeScan.read(
-        words.map((value) {
-          final map = value as Map;
-          return (
-            text: map['text'] as String,
-            x: (map['x'] as num).toDouble(),
-            y: (map['y'] as num).toDouble(),
-            height: (map['height'] as num).toDouble(),
-          );
-        }),
-      );
       if (!mounted) return;
       setState(() {
-        _rows.addAll(parsed);
-        _next = parsed.length + 1;
-        if (parsed.isEmpty) {
-          _message =
-              'No text was found. Try a closer crop or add the rows manually.';
-        }
+        _crop = source;
+        _cropPath = file.path;
+        _cropBytes = crop.scan;
+        _cropMeta = crop;
+        _originalCopy = preserved;
+        _rows.clear();
+        _checked.clear();
+        _cellSources = {};
+        _activeEngineId = null;
+        _message = NativePlatformHelper.canRecognizeTable
+            ? null
+            : 'Enter the rows from the crop, or choose an OCR engine below if one is available.';
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _panelKey.currentState?.autoScan());
     } catch (_) {
       if (mounted) {
         setState(
@@ -421,6 +543,7 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
     );
     if (row == null || !mounted) return;
     setState(() {
+      _reviewed = false;
       if (index == null) {
         _rows.add(row);
       } else {
@@ -516,6 +639,16 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            OcrPanel(
+              key: _panelKey,
+              registry: widget.ocrRegistry,
+              cropPath: _cropPath,
+              cropBytes: _cropBytes,
+              onUseRun: _useRun,
+              onUseCompared: _useCompared,
+              onReset: _resetOcr,
+            ),
             if (_busy)
               const Padding(
                 padding: EdgeInsets.all(16),
@@ -591,6 +724,11 @@ class _SchemeScanScreenState extends State<SchemeScanScreen> {
                       onPressed: _busy || _saving ? null : () => _save(selected),
                       icon: const Icon(Icons.save_outlined),
                       label: Text(_saved == null ? 'Save' : (_dirty ? 'Save changes' : 'Saved')),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _busy || _reviewed ? null : _markReviewed,
+                      icon: Icon(_reviewed ? Icons.verified_outlined : Icons.fact_check_outlined),
+                      label: Text(_reviewed ? 'Schedule reviewed' : 'Mark Schedule Reviewed'),
                     ),
                     OutlinedButton.icon(
                       onPressed: _busy ? null : () => _export(selected),

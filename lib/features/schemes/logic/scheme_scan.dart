@@ -278,6 +278,7 @@ class SchemeScan {
         kanal: checked.kanal,
         marla: checked.marla,
         sarsai: checked.sarsai,
+        suggestion: checked.suggestion,
         // The percentage is calculated from the area and the total area, not read from the photo.
         percent: '',
         classification: classification,
@@ -325,7 +326,7 @@ class SchemeScan {
 
   /// The printed square feet is an independent reading of the same area, so it repairs or
   /// questions the Kanal/Marla/Sarsai cells. Anything filled or doubtful is flagged for review.
-  static ({String kanal, String marla, String sarsai, bool flag}) _crossCheck({
+  static ({String kanal, String marla, String sarsai, bool flag, String suggestion}) _crossCheck({
     required bool hasSarsaiColumn,
     required String sft,
     required String kanal,
@@ -333,7 +334,7 @@ class SchemeScan {
     required String sarsai,
   }) {
     final printed = sft.trim().isEmpty ? null : SchemeArea.decimal(sft, 4);
-    final unchanged = (kanal: kanal, marla: marla, sarsai: sarsai, flag: false);
+    final unchanged = (kanal: kanal, marla: marla, sarsai: sarsai, flag: false, suggestion: '');
     if (printed == null || printed <= 0) return unchanged;
     // Schedules print whole Sarsai, so repair to the nearest whole Sarsai.
     final units = (((printed + SchemeArea.unit ~/ 2) ~/ SchemeArea.unit + 50) ~/ 100) * 100;
@@ -348,35 +349,34 @@ class SchemeScan {
     // cell, so only compare totals; never invent a Sarsai.
     if (!hasSarsaiColumn || marla.contains('.')) {
       if (kanal.trim().isEmpty && marla.trim().isEmpty) {
-        return (kanal: fromSft.k, marla: fromSft.m, sarsai: sarsai, flag: true);
+        return (kanal: kanal, marla: marla, sarsai: sarsai, flag: true, suggestion: '${fromSft.k}K-${fromSft.m}M');
       }
       final read = SchemeArea.land(kanal.trim().isEmpty ? '0' : kanal, marla.trim().isEmpty ? '0' : marla, '0');
       final off = read == null || (read - printed).abs() > 272 * 10000;
-      return off ? (kanal: kanal, marla: marla, sarsai: sarsai, flag: true) : unchanged;
+      return off ? (kanal: kanal, marla: marla, sarsai: sarsai, flag: true, suggestion: '') : unchanged;
     }
     final missing = [kanal, marla, sarsai].where((value) => value.trim().isEmpty).length;
     if (missing == 3) {
-      return (kanal: fromSft.k, marla: fromSft.m, sarsai: fromSft.s, flag: true);
+      return (kanal: kanal, marla: marla, sarsai: sarsai, flag: true, suggestion: '${fromSft.k}K-${fromSft.m}M-${fromSft.s}S');
     }
     if (missing > 0) {
       // Fill a gap only when what was read agrees with the square feet.
       final agrees = (kanal.trim().isEmpty || close(kanal, fromSft.k, 0)) &&
           (marla.trim().isEmpty || close(marla, fromSft.m, 1)) &&
           (sarsai.trim().isEmpty || close(sarsai, fromSft.s, 2));
-      if (agrees) {
-        return (
-          kanal: kanal.trim().isEmpty ? fromSft.k : kanal,
-          marla: marla.trim().isEmpty ? fromSft.m : marla,
-          sarsai: sarsai.trim().isEmpty ? fromSft.s : sarsai,
-          flag: true,
-        );
-      }
-      return (kanal: kanal, marla: marla, sarsai: sarsai, flag: true);
+      // Never write into a cell that was not read: offer the square-feet reading instead.
+      return (
+        kanal: kanal,
+        marla: marla,
+        sarsai: sarsai,
+        flag: true,
+        suggestion: agrees ? '${fromSft.k}K-${fromSft.m}M-${fromSft.s}S' : '',
+      );
     }
     final read = SchemeArea.land(kanal, marla, sarsai);
     // Printed square feet are rounded, so allow up to one Marla before questioning the cells.
     if (read == null || (read - printed).abs() > 272 * 10000) {
-      return (kanal: kanal, marla: marla, sarsai: sarsai, flag: true);
+      return (kanal: kanal, marla: marla, sarsai: sarsai, flag: true, suggestion: '');
     }
     return unchanged;
   }
@@ -389,7 +389,7 @@ class SchemeScan {
 
   static const _phrases = [
     'TOTAL AREA OF PLOT', 'TOTAL AREA OF ROAD', 'TOTAL AREA OF SCHEME',
-    'TOTAL AREA OF SCHEME', 'TOTAL ROAD AREA', 'RESIDENTIAL AREA',
+    'TOTAL AREA', 'TOTAL ROAD AREA', 'RESIDENTIAL AREA',
     'COMMERCIAL AREA', 'PARK & GREEN BELT', 'PARK AND GREEN BELT',
     'PUBLIC BUILDING', 'SOLID WASTE MANAGEMENT & DISPOSAL',
   ];
@@ -429,7 +429,7 @@ class SchemeScan {
       final distance = _distance(letters, target);
       final keyWord = phrase.split(' ').last;
       // A heading whose last word ("ROAD", "PLOT", "SCHEME") survived can be more badly damaged.
-      final allowance = letters.contains(keyWord) && keyWord.length >= 4 && phrase.startsWith('TOTAL') ? 0.42 : 0.25;
+      final allowance = const {'ROAD', 'PLOT', 'SCHEME'}.contains(keyWord) && letters.contains(keyWord) ? 0.42 : 0.25;
       if (distance <= target.length * allowance && distance < bestDistance) {
         best = phrase;
         bestDistance = distance;

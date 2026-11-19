@@ -288,17 +288,12 @@ Future<SchemeRow?> editSchemeRow(BuildContext context, SchemeRow original) {
                       controller: controller,
                       keyboardType: areaKeyboard,
                       decoration: InputDecoration(labelText: label),
-                      // Typing Kanal/Marla/Sarsai recalculates the square feet.
+                      // The scanned square feet are kept as scanned; only the calculated square feet follow.
                       onChanged: (_) => update(() {
                         row
                           ..kanal = kanal.text
                           ..marla = marla.text
                           ..sarsai = sarsai.text;
-                        final area = row.printedKms;
-                        if (area != null) {
-                          sft.text = plainSquareFeet(area);
-                          row.sft = sft.text;
-                        }
                       }),
                     ),
                   ),
@@ -313,7 +308,7 @@ Future<SchemeRow?> editSchemeRow(BuildContext context, SchemeRow original) {
                   child: TextField(
                     controller: sft,
                     keyboardType: areaKeyboard,
-                    decoration: const InputDecoration(labelText: 'Square feet'),
+                    decoration: const InputDecoration(labelText: 'Scanned square feet'),
                     // Typing the square feet fills Kanal/Marla/Sarsai.
                     onChanged: (text) => update(() {
                       row.sft = text;
@@ -346,6 +341,66 @@ Future<SchemeRow?> editSchemeRow(BuildContext context, SchemeRow original) {
             ],
           ),
           Text('Calculated square feet: ${SchemeArea.display(row.area)}'),
+          if (row.suggestion.isNotEmpty && row.kanal.trim().isEmpty && row.marla.trim().isEmpty)
+            Card(
+              child: ListTile(
+                title: Text('The scanned square feet suggest ${row.suggestion}'),
+                subtitle: const Text('Not applied until you accept it.'),
+                trailing: TextButton(
+                  onPressed: () => update(() {
+                    final parts = RegExp(r'(\d+(?:\.\d+)?)K-(\d+(?:\.\d+)?)M(?:-(\d+(?:\.\d+)?)S)?').firstMatch(row.suggestion);
+                    if (parts == null) return;
+                    kanal.text = parts.group(1)!;
+                    marla.text = parts.group(2)!;
+                    sarsai.text = parts.group(3) ?? '';
+                    row
+                      ..kanal = kanal.text
+                      ..marla = marla.text
+                      ..sarsai = sarsai.text
+                      ..suggestion = '';
+                  }),
+                  child: const Text('Use suggestion'),
+                ),
+              ),
+            ),
+          if (row.sftConflict)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('The scanned figures disagree. Choose which one to trust.'),
+                    const SizedBox(height: 4),
+                    Text('Scanned K/M/S: ${SchemeArea.display(row.printedKms)}'),
+                    Text('Scanned square feet: ${SchemeArea.display(row.printedSft)}'),
+                    RadioGroup<String>(
+                      groupValue: row.sftDecision,
+                      onChanged: (value) => update(() {
+                        row.sftDecision = value ?? '';
+                        if (row.sftDecision == 'sft') {
+                          final units = (row.printedSft! + SchemeArea.unit ~/ 2) ~/ SchemeArea.unit;
+                          final c = LandMath.centiSarsaiToComposite(units);
+                          kanal.text = '${c.kanal}';
+                          marla.text = '${c.marla}';
+                          sarsai.text = c.sarsaiFormatted;
+                          row
+                            ..kanal = kanal.text
+                            ..marla = marla.text
+                            ..sarsai = sarsai.text;
+                        }
+                      }),
+                      child: const Column(
+                        children: [
+                          RadioListTile<String>(dense: true, value: 'kms', title: Text('Keep the K/M/S')),
+                          RadioListTile<String>(dense: true, value: 'sft', title: Text('Use the square feet (recalculates K/M/S)')),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           SchemeAreaField(
             label: 'Mortgage sq ft (optional)',
             value: row.mortgageSft,

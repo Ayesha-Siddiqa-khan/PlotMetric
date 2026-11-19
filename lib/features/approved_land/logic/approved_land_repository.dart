@@ -111,9 +111,9 @@ class ApprovedLandRepository {
       final entry = ApprovedLandEntry.fromDb(rows.single)..schemeId = schemeId;
       // With no ticked rows there is no transfer figure yet; keep what the register already holds.
       if (transferArea != null) {
-        entry
-          ..transferTotal = LandAreaText.format(transferArea)
-          ..transferred = LandAreaText.normalize(transferred);
+        entry.transferTotal = LandAreaText.format(transferArea);
+        // Nothing typed this time: keep the transferred figure already on record.
+        if (transferred.trim().isNotEmpty) entry.transferred = LandAreaText.normalize(transferred);
         entry.remaining = ApprovedLandEntry.computeRemaining(entry.transferTotal, entry.transferred);
       }
       if (entry.totalArea.trim().isEmpty && totalAreaIfEmpty.isNotEmpty) {

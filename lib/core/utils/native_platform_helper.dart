@@ -12,6 +12,22 @@ class NativePlatformHelper {
     }) ?? '';
   }
 
+  /// Android SDK level, supported CPU ABIs and the app documents folder (null off Android).
+  static Future<({int sdk, List<String> abis, String documentsDir})?> androidDeviceInfo() async {
+    if (kIsWeb || !Platform.isAndroid) return null;
+    try {
+      final info = await _channel.invokeMapMethod<String, Object?>('deviceInfo');
+      if (info == null) return null;
+      return (
+        sdk: info['sdk'] as int,
+        abis: (info['abis'] as List).cast<String>(),
+        documentsDir: info['documentsDir'] as String,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// True where table text recognition works offline (Android ML Kit, Windows OCR).
   static bool get canRecognizeTable =>
       !kIsWeb && (Platform.isAndroid || Platform.isWindows);

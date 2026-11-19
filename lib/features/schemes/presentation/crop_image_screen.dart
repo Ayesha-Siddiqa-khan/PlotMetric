@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -6,8 +7,18 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/native_platform_helper.dart';
+import '../../ocr/image_adjust.dart';
 
-typedef CropResult = ({Uint8List scan, Uint8List preview});
+/// The confirmed crop. The original file, the crop rectangle (fractions of the rotated picture),
+/// the number of quarter turns and the adjustments are kept so the scan can be explained later.
+typedef CropResult = ({
+  Uint8List scan,
+  Uint8List preview,
+  String originalPath,
+  List<double> cropRect,
+  int rotationTurns,
+  Map<String, Object> adjustments,
+});
 
 class CropImageScreen extends StatefulWidget {
   const CropImageScreen({super.key, required this.path});
@@ -95,6 +106,8 @@ class _CropImageScreenState extends State<CropImageScreen> {
   String? _error;
   bool _working = false;
   Rect _crop = const Rect.fromLTRB(0.08, 0.08, 0.92, 0.92);
+  int _turns = 0;
+  ImageAdjustments _adjust = const ImageAdjustments();
 
   @override
   void initState() {
@@ -158,6 +171,7 @@ class _CropImageScreenState extends State<CropImageScreen> {
       source.dispose();
       _zoom.value = Matrix4.identity();
       setState(() {
+        _turns = (_turns + 1) % 4;
         _image = rotated;
         _crop = Rect.fromLTRB(
           1 - _crop.bottom,
@@ -182,12 +196,29 @@ class _CropImageScreenState extends State<CropImageScreen> {
       image,
       bounds,
       Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
-      Paint()..filterQuality = FilterQuality.medium,
+      Paint()
+        ..filterQuality = FilterQuality.medium
+        ..colorFilter = _adjust.needsColorFilter ? ColorFilter.matrix(_adjust.colorMatrix()) : null,
     );
     final picture = recorder.endRecording();
     try {
       final output = await picture.toImage(width, height);
       try {
+        if (_adjust.sharpen) {
+          final raw = await output.toByteData(format: ui.ImageByteFormat.rawRgba);
+          if (raw == null) throw StateError('Could not read the crop.');
+          final sharpened = sharpenRgba(raw.buffer.asUint8List(), width, height);
+          final done = Completer<ui.Image>();
+          ui.decodeImageFromPixels(sharpened, width, height, ui.PixelFormat.rgba8888, done.complete);
+          final sharp = await done.future;
+          try {
+            final data = await sharp.toByteData(format: ui.ImageByteFormat.png);
+            if (data == null) throw StateError('Could not encode the crop.');
+            return data.buffer.asUint8List();
+          } finally {
+            sharp.dispose();
+          }
+        }
         final data = await output.toByteData(format: ui.ImageByteFormat.png);
         if (data == null) throw StateError('Could not encode the crop.');
         return data.buffer.asUint8List();
@@ -220,7 +251,16 @@ class _CropImageScreenState extends State<CropImageScreen> {
         scale *= 0.75;
         preview = await _render(image, rect, scale);
       }
-      if (mounted) Navigator.pop(context, (scan: scan, preview: preview));
+      if (mounted) {
+        Navigator.pop(context, (
+          scan: scan,
+          preview: preview,
+          originalPath: widget.path,
+          cropRect: [_crop.left, _crop.top, _crop.right, _crop.bottom],
+          rotationTurns: _turns,
+          adjustments: _adjust.toJson(),
+        ));
+      }
     } catch (_) {
       if (mounted) setState(() => _error = 'Could not crop the image.');
     } finally {
@@ -307,10 +347,12 @@ class _CropImageScreenState extends State<CropImageScreen> {
                                 clipBehavior: Clip.none,
                                 children: [
                                   Positioned.fill(
-                                    child: RawImage(
-                                      image: image,
-                                      fit: BoxFit.fill,
-                                    ),
+                                    child: _adjust.needsColorFilter
+                                        ? ColorFiltered(
+                                            colorFilter: ColorFilter.matrix(_adjust.colorMatrix()),
+                                            child: RawImage(image: image, fit: BoxFit.fill),
+                                          )
+                                        : RawImage(image: image, fit: BoxFit.fill),
                                   ),
                                   Positioned.fill(
                                     child: IgnorePointer(
@@ -349,6 +391,87 @@ class _CropImageScreenState extends State<CropImageScreen> {
                         );
                       },
                     ),
+            ),
+            ExpansionTile(
+              title: const Text('Adjust image (brightness, contrast, grayscale, sharpen)'),
+              children: [
+                Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    const Text('Brightness'),
+                    Expanded(
+                      child: Slider(
+                        value: _adjust.brightness,
+                        min: -0.5,
+                        max: 0.5,
+                        onChanged: _working
+                            ? null
+                            : (value) => setState(
+                                () => _adjust = ImageAdjustments(
+                                  brightness: value,
+                                  contrast: _adjust.contrast,
+                                  grayscale: _adjust.grayscale,
+                                  sharpen: _adjust.sharpen,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    const Text('Contrast'),
+                    Expanded(
+                      child: Slider(
+                        value: _adjust.contrast,
+                        min: 0.5,
+                        max: 2,
+                        onChanged: _working
+                            ? null
+                            : (value) => setState(
+                                () => _adjust = ImageAdjustments(
+                                  brightness: _adjust.brightness,
+                                  contrast: value,
+                                  grayscale: _adjust.grayscale,
+                                  sharpen: _adjust.sharpen,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+                SwitchListTile(
+                  dense: true,
+                  title: const Text('Grayscale'),
+                  value: _adjust.grayscale,
+                  onChanged: _working
+                      ? null
+                      : (value) => setState(
+                          () => _adjust = ImageAdjustments(
+                            brightness: _adjust.brightness,
+                            contrast: _adjust.contrast,
+                            grayscale: value,
+                            sharpen: _adjust.sharpen,
+                          ),
+                        ),
+                ),
+                SwitchListTile(
+                  dense: true,
+                  title: const Text('Sharpen (applied to the final crop)'),
+                  value: _adjust.sharpen,
+                  onChanged: _working
+                      ? null
+                      : (value) => setState(
+                          () => _adjust = ImageAdjustments(
+                            brightness: _adjust.brightness,
+                            contrast: _adjust.contrast,
+                            grayscale: _adjust.grayscale,
+                            sharpen: value,
+                          ),
+                        ),
+                ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.all(12),

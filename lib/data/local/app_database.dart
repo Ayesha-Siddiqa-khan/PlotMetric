@@ -7,7 +7,7 @@ import '../../core/constants/scheme_catalog.dart';
 
 class AppDatabase {
   static const String databaseName = 'plotmetric.db';
-  static const int databaseVersion = 4;
+  static const int databaseVersion = 5;
 
   static AppDatabase? _instance;
   static Database? _database;
@@ -50,11 +50,13 @@ class AppDatabase {
         await _createSchemeTables(db);
         await _seedSchemeRegister(db);
         await _createApprovedLandTables(db);
+        await _createSettingsTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) await _createSchemeTables(db);
         if (oldVersion < 3) await _seedSchemeRegister(db);
         if (oldVersion < 4) await _createApprovedLandTables(db);
+        if (oldVersion < 5) await _createSettingsTable(db);
       },
     );
   }
@@ -68,6 +70,15 @@ class AppDatabase {
       await db.insert('scheme_register', {'name': name},
         conflictAlgorithm: ConflictAlgorithm.ignore);
     }
+  }
+
+  Future<void> _createSettingsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _createApprovedLandTables(Database db) async {

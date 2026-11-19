@@ -135,9 +135,11 @@ void main() {
       expect(rows[0].area, 2831400000);
       expect((rows[1].kanal, rows[1].marla, rows[1].sarsai), ('13', '3', '2'));
       expect(rows[1].area, 716622500);
-      // The blank Kanal cell is filled from the printed 19817 sq ft, and the row stays flagged.
-      expect((rows[2].kanal, rows[2].marla, rows[2].sarsai), ('3', '12', '7'));
+      // The blank Kanal cell is never filled in; the printed 19817 sq ft only suggests a value.
+      expect(rows[2].kanal, isEmpty);
+      expect(rows[2].suggestion, '3K-12M-7S');
       expect(rows[2].needsReview, isTrue);
+      expect(rows[2].area, isNull);
       expect(
         LandDocumentParser.parseDocumentText('ROAD AREA 71670 13 3 2 25.3'),
         isEmpty,
@@ -579,12 +581,20 @@ void main() {
       word('4', 20, 145), word('COMMERCIAL AREA', 100, 145), word('5662', 240, 145),
       word('9', 275, 145), word('0', 310, 145), word('8', 345, 145), word('2', 380, 145),
     ]);
-    expect((rows[1].kanal, rows[1].marla, rows[1].sarsai), ('32', '12', '2'));
-    expect(rows[1].needsReview, isTrue); // filled from the square feet, so check it
-    expect((rows[2].kanal, rows[2].marla, rows[2].sarsai), ('3', '12', '7'));
+    // Unread cells stay empty: the square feet only suggest what they might hold.
+    expect((rows[1].kanal, rows[1].marla, rows[1].sarsai), ('32', '', '2'));
+    expect(rows[1].suggestion, '32K-12M-3S'); // from the printed 177607 sq ft
+    expect(rows[1].needsReview, isTrue);
+    expect((rows[2].kanal, rows[2].marla, rows[2].sarsai), ('', '', ''));
+    expect(rows[2].suggestion, '3K-12M-7S');
     expect(rows[2].needsReview, isTrue);
-    expect(rows[3].needsReview, isTrue); // disagrees with 5662 sq ft
-    expect((rows[3].kanal, rows[3].marla, rows[3].sarsai), ('9', '0', '8')); // never overwritten
+    // K/M/S that disagree with the scanned square feet are kept, flagged, and need a decision.
+    expect(rows[3].needsReview, isTrue);
+    expect((rows[3].kanal, rows[3].marla, rows[3].sarsai), ('9', '0', '8'));
+    expect(rows[3].sftConflict, isTrue);
+    expect(rows[3].ready, isFalse);
+    rows[3].sftDecision = 'kms';
+    expect(rows[3].needsSftDecision, isFalse);
     expect(rows[0].needsReview, isFalse);
   });
 

@@ -56,6 +56,13 @@ class MainActivity : FlutterActivity() {
                         }
                     }.start()
                 }
+                "deviceInfo" -> result.success(
+                    mapOf(
+                        "sdk" to Build.VERSION.SDK_INT,
+                        "abis" to Build.SUPPORTED_ABIS.toList(),
+                        "documentsDir" to getDir("flutter", MODE_PRIVATE).absolutePath
+                    )
+                )
                 "recognizeImageText", "recognizeImageTable" -> {
                     val path = call.argument<String>("filePath") ?: ""
                     recognizeImageText(File(path), call.method == "recognizeImageTable", result)

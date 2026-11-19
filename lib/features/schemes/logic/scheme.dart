@@ -87,12 +87,31 @@ class SchemeRow {
     this.classification = AreaClass.review,
     this.source = '',
     this.needsReview = false,
+    this.sftDecision = '',
+    this.suggestion = '',
   });
 
   final int id;
   String description, sft, kanal, marla, sarsai, percent, mortgageSft, source;
   AreaClass classification;
   bool needsReview;
+
+  /// When the scanned square feet and the scanned K/M/S disagree, the person's decision:
+  /// 'kms' keeps the K/M/S, 'sft' takes the square feet. Empty until they decide.
+  String sftDecision;
+
+  /// A K/M/S reading the scanned square feet would give for cells that were not read, for example
+  /// "3K-12M-7S". It is only a suggestion; the cells stay empty until the person accepts it.
+  String suggestion;
+
+  /// The scanned square feet and the scanned K/M/S describe different areas (more than one Marla apart).
+  bool get sftConflict {
+    final printed = printedSft, read = printedKms;
+    return printed != null && read != null && (read - printed).abs() > 272 * 10000;
+  }
+
+  /// A disagreement that nobody has decided yet blocks confirming the row.
+  bool get needsSftDecision => sftConflict && sftDecision.isEmpty;
   bool get hasKms =>
       [kanal, marla, sarsai].any((value) => value.trim().isNotEmpty);
   int? get printedSft => sft.trim().isEmpty ? null : SchemeArea.decimal(sft, 4);
@@ -105,6 +124,7 @@ class SchemeRow {
   bool get ready =>
       classification != AreaClass.review &&
       !needsReview &&
+      !needsSftDecision &&
       description.trim().isNotEmpty &&
       (classification == AreaClass.subtotal || (area ?? 0) > 0);
 
@@ -147,6 +167,8 @@ class SchemeRow {
     'class': classification.name,
     'source': source,
     'needsReview': needsReview,
+    'sftDecision': sftDecision,
+    'suggestion': suggestion,
   };
 
   factory SchemeRow.fromJson(Map<String, dynamic> map) => SchemeRow(
@@ -161,6 +183,8 @@ class SchemeRow {
     classification: AreaClass.values.byName(map['class'] as String),
     source: map['source'] as String,
     needsReview: map['needsReview'] as bool,
+    sftDecision: map['sftDecision'] as String? ?? '',
+    suggestion: map['suggestion'] as String? ?? '',
   );
 }
 
@@ -224,6 +248,10 @@ class HousingScheme {
   String transferredKanal = '', transferredMarla = '', transferredSarsai = '';
   /// Every scanned row (ticked or not) and the ticked ids, so a saved scan can be reopened as it was.
   final scanRows = <SchemeRow>[];
+
+  /// How the schedule was read: engine, version, every engine's raw words, the crop and where each
+  /// cell came from. Kept with the scheme so a scan can be audited; never used for accounting.
+  Map<String, dynamic>? ocrProvenance;
   final scanChecked = <int>{};
   String? scheduleCrop;
   final rows = <SchemeRow>[];
@@ -246,6 +274,7 @@ class HousingScheme {
     'selectedOnly': selectedOnly,
     'scanRows': scanRows.map((row) => row.toJson()).toList(),
     'scanChecked': scanChecked.toList(),
+    'ocr': ocrProvenance,
     'transferred': {'k': transferredKanal, 'm': transferredMarla, 's': transferredSarsai},
     'crop': scheduleCrop,
     'columns': columns.map((column) => column.name).toList(),
@@ -303,6 +332,7 @@ class HousingScheme {
       (map['scanRows'] as List? ?? []).cast<Map<String, dynamic>>().map(SchemeRow.fromJson),
     );
     scheme.scanChecked.addAll((map['scanChecked'] as List? ?? []).cast<int>());
+    scheme.ocrProvenance = (map['ocr'] as Map?)?.cast<String, dynamic>();
     final savedRows = (map['rows'] as List).cast<Map<String, dynamic>>();
     scheme.rows.addAll(savedRows.map(SchemeRow.fromJson));
     scheme.evidence.addAll(
