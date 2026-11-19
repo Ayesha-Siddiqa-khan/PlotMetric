@@ -398,7 +398,7 @@ class LandController extends ChangeNotifier {
     final trimmedTitle = _title.trim();
     final effectiveTitle = trimmedTitle.isNotEmpty
         ? trimmedTitle
-        : 'Calculation ${DateTimeFormatters.formatDisplayDate(_calculationDate)} ${DateTimeFormatters.formatDisplayTime(_calculationTime)}';
+        : 'Calculation $displayDate $displayTime';
 
     if (hasErrors) {
       _errorMessage = 'Please fix input errors before saving.';

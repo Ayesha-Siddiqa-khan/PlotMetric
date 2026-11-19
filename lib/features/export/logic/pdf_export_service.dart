@@ -53,6 +53,8 @@ class PdfExportService {
     String? totalAreaLabel,
     String? totalDeductionsLabel,
     String? netBalanceLabel,
+    bool includeSummaryBox = false,
+    bool includeSchemeDateTime = false,
   }) {
     return _buildPdf(
       title: title,
@@ -62,6 +64,8 @@ class PdfExportService {
       totalAreaLabel: totalAreaLabel,
       totalDeductionsLabel: totalDeductionsLabel,
       netBalanceLabel: netBalanceLabel,
+      includeSummaryBox: includeSummaryBox,
+      includeSchemeDateTime: includeSchemeDateTime,
       calculations: calculations,
     );
   }
@@ -74,6 +78,8 @@ class PdfExportService {
     String? totalAreaLabel,
     String? totalDeductionsLabel,
     String? netBalanceLabel,
+    bool includeSummaryBox = true,
+    bool includeSchemeDateTime = true,
     required List<Calculation> calculations,
   }) {
     final builder = _PdfLowLevelBuilder();
@@ -151,16 +157,18 @@ class PdfExportService {
         );
         currentY -= 16;
 
-        final dateStr = 'Date: ${DateTimeFormatters.storageToDisplayDate(calc.calculationDate)}  |  Time: ${DateTimeFormatters.storageToDisplayTime(calc.calculationTime)}';
-        currentPage.drawText(
-          dateStr,
-          x: a4Width / 2,
-          y: currentY - 10,
-          fontSize: 10,
-          isBold: false,
-          align: _PdfTextAlign.center,
-        );
-        currentY -= 14;
+        if (includeSchemeDateTime) {
+          final dateStr = 'Date: ${DateTimeFormatters.storageToDisplayDate(calc.calculationDate)}  |  Time: ${DateTimeFormatters.storageToDisplayTime(calc.calculationTime)}';
+          currentPage.drawText(
+            dateStr,
+            x: a4Width / 2,
+            y: currentY - 10,
+            fontSize: 10,
+            isBold: false,
+            align: _PdfTextAlign.center,
+          );
+          currentY -= 14;
+        }
       }
 
       // Prepare Table Data with Running Balances
@@ -232,24 +240,28 @@ class PdfExportService {
       }
 
       // Calculation Summary Box (Totals & Net Balance)
-      final summary = calc.summary;
-      if (currentY < marginBottom + 95) {
-        currentPage = _PdfPageContent();
-        pagesContent.add(currentPage);
-        currentY = a4Height - marginTop;
-      }
+      if (includeSummaryBox) {
+        final summary = calc.summary;
+        if (currentY < marginBottom + 95) {
+          currentPage = _PdfPageContent();
+          pagesContent.add(currentPage);
+          currentY = a4Height - marginTop;
+        }
 
-      currentY -= 8;
-      currentY = _drawSummaryBox(
-        currentPage,
-        currentY,
-        summary,
-        summaryTitle: summaryTitle,
-        totalAreaLabel: totalAreaLabel,
-        totalDeductionsLabel: totalDeductionsLabel,
-        netBalanceLabel: netBalanceLabel,
-      );
-      currentY -= 20;
+        currentY -= 8;
+        currentY = _drawSummaryBox(
+          currentPage,
+          currentY,
+          summary,
+          summaryTitle: summaryTitle,
+          totalAreaLabel: totalAreaLabel,
+          totalDeductionsLabel: totalDeductionsLabel,
+          netBalanceLabel: netBalanceLabel,
+        );
+        currentY -= 20;
+      } else {
+        currentY -= 16;
+      }
     }
 
     // Add page numbers and finalize each page into builder
